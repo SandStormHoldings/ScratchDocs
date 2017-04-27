@@ -1,0 +1,48 @@
+<%inherit file="/base.html" />
+<%def name="content()">
+<p>
+<a href="${upr}/${metastate_url_prefix}">personal queue</a> :: 
+<a href="${upr}/${metastate_url_prefix}/archive">archive</a> :: 
+<a href="${upr}/${metastate_url_prefix}/all" accesskey="t">en<b>t</b>ire queue</a></p>
+<hr /> 
+<table class="table table-striped table-bordered table-hover tasks-queue" style='font-size:90%'>
+<thead>
+  <tr>
+    <th>Task</th>
+    <th>Last update</th>
+    <th>Assigne</th>
+    <th>Summary</th>
+    <th>Status</th>
+    <th>Tracked</th>
+    % for ms in metastates[metastate_group]:
+    <th>${ms}</th>
+    % endfor
+  </tr>
+</thead>
+% for tid,upd in queue:
+<%
+classname=''
+if 'critical' in upd['tags']:
+   classname+=' red'
+if 'priority' in upd['tags']:
+   classname+=' bold'
+%>
+<tr class="${classname}">
+  <td><a href="${upr}/${tid}">${tid}</a></td>
+  <td><a href="${upr}/${tid}">${upd.get('last updated') and  upd.get('last updated').strftime('%Y-%m-%d %H:%M') or '--'}</a></td>
+  <td>${upd['assignee']}</td>
+  <td>${upd['summary']}</td>
+  <td class="td-center-align">${upd['status']}</td>
+<% we = float(upd['states'].get('work estimate',0)) %>
+<% th = float(upd.get('total_hours',0)) %>
+<td class="${th>we and 'msg' or ''}">\
+${"%4.2f"%(we-th)}</td>
+  % for ms in metastates[metastate_group]:
+  <td class="td-center-align">
+    ${self.metastate_sel(tid,ms,upd['states'].get(ms),colors,metastates[metastate_group],overrides,upd['fullstates'],allow_empty=True,style='',noinput=True,total_hours=upd.get('total_hours',0))}
+  </td>
+  % endfor
+</tr>
+% endfor
+</table>
+</%def>

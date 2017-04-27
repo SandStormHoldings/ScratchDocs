@@ -1,0 +1,205 @@
+<%
+feed = False
+%>
+<!DOCTYPE html>
+<html>
+    <head>
+      <title>${self.title()}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="${upr}/assets/css/bootstrap.css" type="text/css"/>
+        <link rel="stylesheet" href="${upr}/assets/css/simplemde.min.css" type="text/css"/>
+        <link rel="stylesheet" href="${upr}/assets/css/highlight.css" type="text/css"/>
+        <link rel="stylesheet" href="${upr}/assets/css/style.css" type="text/css"/>
+	<link rel="stylesheet" href="${upr}/assets/css/dhtmlxgantt.css" type="text/css"/>
+        <script type='text/javascript' src='${upr}/assets/js/zepto.min.js'></script>
+        <script type='text/javascript' src='${upr}/assets/js/marked.js'></script>
+        <script type='text/javascript' src='${upr}/assets/js/simplemde.min.js'></script>
+        <script type='text/javascript' src='${upr}/assets/js/highlight.js'></script>
+	<script type='text/javascript' src='${upr}/assets/js/dhtmlxgantt.js'></script>
+        <script type='text/javascript'>
+jQuery = $;
+$(function() {
+    $('.metastate-sel').on('change',function(ev) {
+        var k = ev.target.name;
+        var v = ev.target.value;
+        if (!v) {
+            alert('setting empty value is forbidden.');ev.preventDefault(); return;
+        }
+        $.post("${upr}/metastate-set",{k:k,v:v},function (resp) {
+            if (!resp.status || resp.status!='ok') {
+                alert('error updating!\n'+resp);
+            }
+        },'json');
+    });
+   function getfeed() {
+     $.get('/feed',function(c) {
+         $('#feed').html(c);
+
+});
+   window.setTimeout(getfeed,10000);
+}
+% if feed:
+getfeed();
+% endif
+});
+
+        </script>
+    </head>
+    <body>
+        <div class="navbar">
+            <div class="navbar-inner">
+                <ul class="nav">
+                  <li><a accesskey="h" href="${upr}/"><b>h</b>ome</a></li>
+		  % if hasperm('gantt'):
+		  <li><a accesskey="a" href="${upr}/g">g<b>a</b>ntt</a></li>
+		  <li><a href="${upr}/tt">time tracking dashboard</a></li>
+		  % endif
+		  <li><a accesskey="c" href="${upr}/incoming/email">in<b>c</b>oming</a></li>
+                    <li><a accesskey="t" href="${upr}/st">s<b>t</b>orage</a></li>
+                    <li><a accesskey="e" href="${upr}/tl">par<b>e</b>nt tasks</a></li>
+                    <li><a accesskey="o" href="${upr}/latest">latest</a></li>
+                    <li><a accesskey="g" href="${upr}/tags">ta<b>g</b>s</a></li>
+                    <li><a accesskey="p" href="${upr}/participants"><b>p</b>articipants</a></li>
+                    <li><a accesskey="n" href="${upr}/s/new"><b>n</b>ew task</a></li>
+                    <li><a accesskey="l" href="${upr}/journal/filter/day/current/groupby/creator">today's journa<b>l</b></a></li>
+                    <li><a accesskey="q" href="${upr}/q">merge <b>q</b>ueue</a></li>
+                    <li><a href="${upr}/pl">planning queue</a></li>
+                    <li><a href="${upr}/pr">production queue</a></li>
+                  <li><a href="${upr}/feed/fs">actions feed</a></li>
+		  % if hasperm('karma'):
+		  <li><a href="${upr}/karma">karma</a></li>
+		  % endif
+		  <li><a accesskey="m" href="${upr}/metastates" ><b>m</b>etastates</a></li>
+                </ul>
+		${user}
+                <form class="navbar-form pull-right" method="get" action="${upr}/search">
+                    <input class="span2" type='text' name='q' value="${request.params.get('q','')|x}" accesskey="/" placeholder="Search" />
+                    <input class="btn" type="submit" value="Search" />
+                </form>
+            </div>
+            <marquee id="feed"
+                     behavior="scroll"
+                     direction="left"
+                     scrollamount="1"
+            >
+% if feed:
+loading feed..
+% endif
+            </marquee>
+        </div>
+        ${self.content()}
+        <script type='text/javascript' src='${upr}/assets/js/bootstrap.min.js'></script>
+    </body>
+</html>
+<%def name="metastate_sel(tid,k,v,colors,possible_metastates,overrides,fullstates,allow_empty=False,style='',noinput=False,total_hours=None)">
+% if type(possible_metastates[k])!=tuple:
+<% inptp = possible_metastates[k].split('(')[1].split(')')[0] %>
+% if noinput:
+${float(v and v or 0)-float(total_hours)}\
+% else:
+<input \
+   type="${inptp}" \
+   name="metastate-${tid}-${k}" \
+   value="${type(v)==float and ('%4.2f'%(float(v and v or 0)-float(total_hours))) or v}" \
+   class="metastate-sel" \
+       />
+% endif
+% else:
+<% assert k!='content' %>
+<select \
+        class='metastate-sel' \
+        name='metastate-${tid}-${k}' \
+        style='background-color:${colors.get(v)};${style}' \
+        onchange="this.style.backgroundColor=this.options[this.selectedIndex].style.backgroundColor">
+<% empties = ['',None] %>
+% for pm in (allow_empty and (possible_metastates[k]+('',)) or possible_metastates[k]):
+<option style='background-color:${colors.get(pm)}' value="${pm}"
+        ${(pm==v or (pm in empties and v in empties))  and 'selected' or ''}>\
+  ${(pm in overrides and eval(overrides[pm]) or pm)}</option>
+% endfor
+</select>
+% endif
+</%def>
+<%def name="icons(tags,st='icon')">
+% for icon in ['critical','priority','email','bug','ops']:
+% if icon in tags:
+<img class='${st}' src="${upr}/assets/img/${icon}.png" title="${icon}"/>
+% endif
+% endfor
+</%def>
+<%def name="list_tasks(tasks,header=True,body=True,footer=True,cnt={'cnt':0})">
+% if header:
+<table class="table table-striped table-bordered table-hover">
+<thead>
+  <tr>
+    <th><a href='?sortby=created'>created</a></th>
+    <th><a href='?sortby=id'>id</a></th>
+    <th><a href='?sortby=status'>status</a></th>
+    <th><a href='?sortby=assignee'>assignee</a></th>    
+% if gethours:
+##     <th>remaining</th>
+% endif
+    <th>tags</th>
+    <th><a href='?sortby=summary'>summary</a></th>
+    <th><a href='?sortby=parents'>parents</a></th>
+  </tr>
+</thead>
+<tbody>
+% endif
+% if body:
+% for t in tasks:
+<%
+if 'critical' in t['tags']:
+   classname='red'
+else:
+   classname=''
+if 'priority' in t['tags']:
+  pritag='<b>'
+  prietag='</b>'
+else:
+  pritag=''
+  prietag=''
+%>
+<tr class='${classname}'>
+  <td>${t['created_at'].date()}</td>
+  <td>
+${pritag|n}<a href="${upr}/${t._id}" title="${t['summary']|h}">${t._id}</a>${prietag|n}</td>
+  <td>${t['status']}</td>
+  <td><a href="${upr}/assignments/${t.assignee}">${t.assignee}</a></td>
+
+## % if gethours:
+## <% 
+## tr = float(t.get('total_hours',0)) ; 
+## if t.get('metastates'):
+##   we = float(t['metastates'].get('work estimate',0))
+## else:
+##   we = 0
+## %>
+## <td class="ralign ${tr>we and 'msg' or ''}">${"%4.1f"%(we-tr)}</td>
+## % endif
+  <td class='tagcln'>${', '.join(t['tags'])}&nbsp;</td>
+  <td class='sumcln'
+  title="${t['summary']|h}">\
+${self.icons(t['tags'])}\
+<% sumlen = 90 %>
+<a class='textlike' href="${upr}/${t._id}">${pritag|n}${len(t['summary'])<sumlen and  t['summary'] or t['summary'][0:sumlen]+'..'}${prietag|n}</a></td>
+  <td style='text-align:right'>
+<% mlen = 30 %>
+## % if t.get('pdescrs'):
+## % for pid,psum in t['pdescrs']:
+## <a title="${psum}" href="${upr}/${pid}">${(len(psum)<=mlen and psum or (psum[0:mlen]+'..'))}</a> &#8250;
+## % endfor
+## % endif
+&nbsp;
+</td>
+
+</tr>
+<% cnt['cnt']+=1 %>
+% endfor
+% endif
+% if footer:
+</tbody>
+</table>
+% endif
+</%def>
+<%def name="title()">Tasks</%def>

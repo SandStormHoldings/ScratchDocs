@@ -1,0 +1,183 @@
+<%inherit file="base.html" />
+<%def name="content()">
+<style type='text/css'>
+  
+html,body,#wrapper {
+	width: 100%;
+	height: 100%;
+	margin: 0px;
+}
+
+.chart {
+	font-family: Arial, sans-serif;
+	font-size: 12px;
+}
+
+.axis path,.axis line {
+	fill: none;
+	stroke: #000;
+	shape-rendering: crispEdges;
+}
+
+.bar {
+	fill: #33b5e5;
+}
+
+/* red */
+.bar-todo {
+	fill: #CC0000;
+}
+
+/* orange */
+.bar-review {
+	fill: #ffbb33;
+}
+
+/* blue */
+.bar-doing {
+	fill: #33b5e5;
+}
+
+/* green */
+.bar-done {
+	fill: #669900;
+}
+
+
+</style>
+<link type="text/css" href="http://mbostock.github.io/d3/style.css" rel="stylesheet" />
+<script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
+<script type="text/javascript" src="/assets/js/gantt-chart-d3v2.js"></script>
+
+<h4>time tracking history by provider</h4>
+	<script type='text/javascript'>
+	  //var tasks = [{"startDate":new Date("Sun Dec 09 01:36:45 EST 2012"),"endDate":new Date("Sun Dec 09 02:36:45 EST 2012"),"taskName":"E Job","status":"RUNNING"}];
+
+	  var displayMode='${mode}';
+	  var tasks = ${json.dumps(tasks)|n};
+	  for (var i=0;i<tasks.length;i++)
+			   {
+			   tasks[i].startDate = new Date(tasks[i].startDate);
+			   tasks[i].endDate =   new Date(tasks[i].endDate);
+			   }
+var taskStatus = {
+    "TODO" : "bar-todo",
+    "DOING" : "bar-doing",
+    "REVIEW" : "bar-review",
+    "DONE" : "bar-done",
+};
+
+var taskNames = ${json.dumps(mode=='provider' and providers or tids)|n};
+
+tasks.sort(function(a, b) {
+    return a.endDate - b.endDate;
+});
+var maxDate = tasks[tasks.length - 1].endDate;
+tasks.sort(function(a, b) {
+    return a.startDate - b.startDate;
+});
+var minDate = tasks[0].startDate;
+
+var format = "%H:%M";
+var timeDomainString = "${rangeback}";
+
+var gantt = d3.gantt().taskTypes(taskNames).taskStatus(taskStatus).tickFormat(format).height(450).width(1600);
+
+
+gantt.timeDomainMode("fixed");
+changeTimeDomain(timeDomainString);
+
+gantt(tasks);
+
+function changeTimeDomain(timeDomainString) {
+    this.timeDomainString = timeDomainString;
+    switch (timeDomainString) {
+    case "1 hour":
+	format = "%H:%M:%S";
+	gantt.timeDomain([ d3.time.hour.offset(getEndDate(), -1), getEndDate() ]);
+	break;
+    case "3 hour":
+	format = "%H:%M";
+	gantt.timeDomain([ d3.time.hour.offset(getEndDate(), -3), getEndDate() ]);
+	break;
+
+    case "6 hour":
+	format = "%H:%M";
+	gantt.timeDomain([ d3.time.hour.offset(getEndDate(), -6), getEndDate() ]);
+	break;
+
+    case "1 day":
+	format = "%H:%M";
+	gantt.timeDomain([ d3.time.day.offset(getEndDate(), -1), getEndDate() ]);
+	break;
+
+    case "2 day":
+	format = "%H:%M";
+	gantt.timeDomain([ d3.time.day.offset(getEndDate(), -2), getEndDate() ]);
+	break;
+			   
+    case "7 day":
+	format = "%a %H:%M";
+	gantt.timeDomain([ d3.time.day.offset(getEndDate(), -6.2), getEndDate() ]);
+	break;
+    case "2 weeks":
+	format = "%a %H:%M";
+	gantt.timeDomain([ d3.time.day.offset(getEndDate(), -14), getEndDate() ]);
+	break;
+	
+    case "1 month":
+	format = "%a %H:%M";
+	gantt.timeDomain([ d3.time.day.offset(getEndDate(), -30), getEndDate() ]);
+	break;
+    case "2 month":
+	format = "%a %H:%M";
+	gantt.timeDomain([ d3.time.day.offset(getEndDate(), -60), getEndDate() ]);
+	break;
+
+    default:
+	format = "%H:%M"
+
+    }
+    gantt.tickFormat(format);
+    gantt.redraw(tasks);
+}
+
+function getEndDate() {
+    var lastEndDate = Date.now();
+    if (tasks.length > 0) {
+	var lastEndDate = new Date(tasks[tasks.length - 1].endDate.getTime());
+	lastEndDate.setDate(lastEndDate.getDate()+0);
+	console.log('lastenddate lasttask',lastEndDate);	
+    }
+    console.log('lastenddate',lastEndDate);
+    return lastEndDate;
+}
+
+
+
+function removeTask() {
+    tasks.pop();
+    changeTimeDomain(timeDomainString);
+    gantt.redraw(tasks);
+};
+</script>
+    <table>
+    <thead>
+    <tr>
+    <% cols = tasks[0].keys() %>
+    % for col in cols:
+    <td>${col}</td>
+    % endfor
+    </tr>
+    </thead>
+    <tbody>
+    % for t in tasks:
+    <tr>
+    % for col in cols:
+    <td>${t[col]}</td>
+    % endfor
+</tr>
+    % endfor
+</tbody>
+</table>
+</%def>

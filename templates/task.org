@@ -1,0 +1,66 @@
+#+STARTUP: showeverything
+#+OPTIONS: toc:nil        (no TOC at all)
+#+STYLE:    <link rel="stylesheet" type="text/css" href="/stylesheet.css" />
+#+TODO: TODO(t) | DOING(p) | REVIEW(r) | DONE(d) | DUPE(u) | POSTPONED(o) | CANCELLED(c) | PARENT(e) | STORAGE(s)
+* ${status} ${summary+"\t\t"}\
+% if tags and len(tags):
+:\
+% for tag in tags:
+${tag}:\
+% endfor
+% endif
+
+** Attributes
+- created at :: <${created}>
+- created by :: ${creator}
+- assigned to :: ${assignee}
+% if informed:
+- informed
+% for i in informed:
+  - ${i}
+% endfor
+% endif
+% if links:
+- links
+% for l in links:
+  - [[${l['url']}][${l['anchor']}]]
+% endfor
+% endif
+## % if points!='?':
+## - points :: ${points}
+## % endif
+% if repobranch:
+- repobranch
+% for rb in repobranch:
+  - ${rb}
+% endfor
+% endif
+## % if unstructured or stasks or comments or detail:
+## # UNSTRUCTURED BEYOND THIS POINT
+## % endif
+% if stasks and len(stasks):
+** Sub-tasks
+% for st in stasks:
+- [${st['complete'] and 'X' or ' '}] ${st['summary']}                 \
+% if st['assignee']:
+:${st['assignee']}:
+% else:
+
+% endif
+% endfor
+% endif
+\
+% if comments and len(comments):
+** Comments
+% for c in comments: 
+- ${c['comment']} <${c['date']}>    :${c['username']}:
+% endfor
+% endif
+\
+% if detail:
+** Detail
+${detail}
+% endif
+% if unstructured:
+${unstructured}
+% endif

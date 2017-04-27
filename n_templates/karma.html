@@ -1,0 +1,22 @@
+<%inherit file="base.html" />
+<%def name="content()">
+<h4>karma receivers</h4>
+<table class="table table-striped table-bordered table-hover tasks-queue" style='font-size:90%'>
+  <thead>
+    <tr>
+      <th>date</th>
+      <th>task</th>
+      <th>receiver</th>
+      <th>points</th>
+      </tr>
+  </thead>
+  % for k in receivers:
+  <tr>
+    <td>${k['date']}</td>
+    <td><a href="${upr}/${k['task']}">${k['task']}</a></td>
+    <td>${k['receiver']}</td>
+    <td>${k['points']}</td>
+    </tr>
+  % endfor
+</table>
+</%def>

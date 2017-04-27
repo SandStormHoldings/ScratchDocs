@@ -1,0 +1,18 @@
+<%
+def dhm(td):
+    return td.days, td.seconds//3600, (td.seconds//60)%60
+%>
+% for f in feed:
+<% dh = dhm(f['delta']) %>\
+<span> :: 
+<a href="${upr}/${f['sid']}${f['what']=='journal' and '/j' or ''}">\
+${f['what']}</a> \
+${f['subj']}\
+## in 
+## <a href="${gwu}/?p=${docs_repo};a=commitdiff;h=${f['cid']}">
+## ${f['cid'][0:4]}</a>
+, ${dh[0] and '%s days, '%dh[0] or ''}\
+${dh[1] and '%s hrs, '%dh[1] or ''}\
+${dh[2] and '%s min '%dh[2] or ''} ago
+</span>
+% endfor

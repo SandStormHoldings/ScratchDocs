@@ -1,0 +1,38 @@
+<%namespace name="tasks" file="tasks.org"/>
+#+OPTIONS: toc:nil        (no TOC at all)
+#+STYLE:    <link rel="stylesheet" type="text/css" href="/stylesheet.css" />
+* Iterations list
+% if current_iteration:
+** Current iteration: [[file:${current_iteration[0]}/][${current_iteration[1]['name']}]]
+% endif
+| iteration | Stories | start date | end date |
+|-----------+---------+------------+----------|
+% for itpath,it in iterations:
+| [[file:${itpath}/][${it['name']}]]\
+% if it['name'] in iterations_stories:
+| ${iterations_stories[it['name']]}\
+% else:
+| \
+% endif
+| ${it.get('start date')|} | ${it.get('end date')|} | 
+% endfor
+
+
+* Participants
+| Person  | All tasks | Current tasks|Total  | 
+|---------+-----------+--------------+-------|
+% for person,files in assigned_files.items():
+|${person}\
+% for fn in ['alltime','current']:
+% if fn in files:
+| [[file:${files[fn]}][${fn}]]\
+% else:
+| --\
+% endif
+% endfor
+ | (${assignees[person]}) |
+% endfor
+
+* Recent tasks
+Also see [[file:changes.org][changes]].
+${tasks.list_tasks(recent_tasks,relpath=False)}

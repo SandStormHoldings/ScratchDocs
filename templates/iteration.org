@@ -1,0 +1,9 @@
+** [[file:../index.org][Up one level]]
+
+** Attributes
+% if start_date:
+- start date :: [${start_date}]
+% endif
+% if end_date:
+- end date :: [${end_date}]
+% endif

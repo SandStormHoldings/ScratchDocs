@@ -1,0 +1,13 @@
+| Revision | Date | Message | Filename | Task | Summary |
+|----------+------+---------+----------+------+---------|
+% for c,cdt in changes.items():
+% for cfn in cdt['changes']:
+<% 
+try:
+	t = pfn(cfn,read=True) 
+except:
+	t = pfn(cfn)
+%>\
+| [[${GITWEB_URL}?p=${DOCS_REPONAME};a=commit;h=${c}][${c[0:4]}]] | ${cdt['date']} | ${cdt['message']} | ${cfn} | [[/s/${t['id']}][${t['id']}]]  | ${t.get('summary')} |
+% endfor
+% endfor

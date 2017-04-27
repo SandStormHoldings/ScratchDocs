@@ -1,0 +1,55 @@
+<%inherit file="/base.html" />
+<%def name="edisp(e)">
+<% parts = re.compile('^(.*) <(.*)>$').search(e) %>
+% if parts:
+<a href="mailto:${parts.group(2)}">${parts.group(1)}</a>
+% else:
+${e}
+% endif
+</%def>
+<%def name="content()">
+<h4>${len(tasks)} tasks updated later than ${newer_than}\
+  % if len(tags):
+  with tag(s) ${",".join(tags)}
+  % endif
+</h4>
+<table class="table table-striped table-bordered table-hover tasks-queue" style='font-size:90%'>
+  <thead>
+    <tr>
+      <th>id</th>
+      <th>creator</th>
+      <th>assignee</th>
+      <th>summary</th>
+      <th>l. upd. by</th>
+      <th>l. upd. on</th>
+      <th>l. upd</th>
+      <th>cross tasks</th>
+      <th>status</th>
+      <th>updates</th>
+    </tr>
+  </thead>
+  % for chat,t,_,cr,s,jlen in tasks:
+<%
+
+   def tsum(t):
+       return len(t.summary)>20 and t.summary[0:40]+'..' or t.summary   
+%>
+  <tr>
+    <td><a href="${upr}/${t._id}">${t._id}</a></td>
+    <td>${self.edisp(t.creator)}</td>
+    <td class="${(not t.assignee or t.assignee=="None") and 'red' or ''}">${t.assignee}</td>
+    <td>${self.icons(t.tags and t.tags or [])}\
+${tsum(t)}</td>
+    <td>${edisp(cr)}</td>
+    <td style='font-size:60%'><nobr>${humanize.naturaltime(now-chat)}</nobr></td>
+    <td>${s}</td>
+    <td>
+      % for cl in getattr(t,'cross_links',[]):
+      <a href="${upr}/${cl}">${cl}</a>: ${tsum(get_task(cl))}<br />
+      % endfor
+    </td>
+    <td>${t.status}</td>
+    <td>${jlen}</td>
+  % endfor
+</table>
+</%def>

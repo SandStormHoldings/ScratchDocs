@@ -1,0 +1,18 @@
+mysql-python
+prettytable
+orgparse
+sendgrid
+-r noodles/requirements.txt
+paste
+celery
+redis
+dulwich
+couchdbkit
+#https://pypi.python.org/packages/5d/d4/bf9a3743fb7bfb3f63225cd8da86a659e12ee9e727be3b3aa5be36939577/notmuch-0.15.1.tar.gz
+humanize
+jsonpatch
+python-dateutil
+psycopg2
+psycogreen
+supervisor
+supervisor-stdout

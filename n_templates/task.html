@@ -1,0 +1,537 @@
+<%inherit file="/base.html" />
+<%def name="sel(name,lst,val,attr='')">
+<select class="form-control" name='${name}' ${attr}>
+% for st in lst:
+<option value='${st}' \
+% if st==val:
+selected=1 \
+% endif
+>${st}</option>
+% endfor
+</select>\
+</%def>
+<%def name="taskmenu()">
+%if parents:
+% if '/' in task._id:
+    <a href="${upr}/${"/".join(task._id.split('/')[0:-1])}" accesskey="u"><b>U</b>p &#8593; </a>
+% endif	
+&nbsp;&nbsp;---&nbsp;&nbsp;
+% for pid,psum in parents:
+<a title="${pid}" href="${upr}/${pid}">${psum}</a> &#8250;
+% endfor    
+%endif
+% if task._id:
+<h2 class="task-title">\
+${self.icons(task.tags,'title-icon')}
+${task._id} - ${task['summary']}
+<input class="btn btn-primary " type='button' value='reload' accesskey='r' onclick="location.reload()" />
+</h2>
+<small><center>
+<%
+   kprt = participants[:] ;
+   if 'user' in kprt: kprt.remove(user)
+%>
+<span title="grant up to ${karma_per_day} points per day!">Grant \
+<span style="color:#ff0000;">K</span><span style="color:#ff7f00;">a</span><span style="color:#ffff00;">r</span><span style="color:#00ff00;">m</span><span style="color:#00ffff;">a</span>
+to:</span> ${sel('karma-new',['']+kprt,'')} <input type='checkbox' name='karma-plus' value='1' checked=1 title="disable to take back" />
+</center></small>
+<div style="text-align:center">
+% if remaining_hours:
+<span class="${remaining_hours<zerodelta and 'msg' or 'bold'}">\
+${"%s remaining"%remaining_hours}\
+</span>
+% endif
+    %if task['summary'] != '':
+        <input class="btn btn-primary upd-btn " type='submit' value='Update' accesskey='a' />
+        <span class="divider-vertical"></span>
+        <input class="btn btn-default custom-link" type='button' accesskey='s' value='Subtask' data-link="${upr}/s/new/${task._id}" accesskey='n' />    
+        <span class="divider-vertical"></span>
+        <input class="btn btn-default custom-link" type='button' value='History' data-link="${upr}/${task._id}/log" />
+	% if hasperm('gantt'):
+	<div class='gantt'>
+	  
+	     % for k in sorted(gantt.keys()):
+	     <% v= gantt[k] %>
+	     % if k=='s':
+	     ${gantt_labels[k]}: <input type='checkbox' class='show_in_gantt' id='show_in_gantt_${task._id}' ${v and ' checked=1' or ''} /><br />
+	     % else:
+	     ${gantt_labels[k]}: ${v}<br />
+	     % endif
+	     % endfor
+	</div>
+	% endif
+    %else:
+        <input class="btn btn-default custom-link" type='submit' value='Summary' data-link="${upr}/${task._id}" />
+    %endif
+</div>
+<script type='text/javascript'>
+  $('.show_in_gantt').click(function(ev) {
+  var res = /show_in_gantt_(.*)$/.exec(ev.target.id);
+  var tid = res[1];
+  var pst = {'show_in_gantt':ev.target.checked}
+  $.post("/"+tid+"/show_in_gantt",pst);
+  });
+  </script>
+% endif
+<ul class="nav nav-pills">
+% if task._id:
+    <!-- <li><a href="${upr}/${task._id}" accesskey="m">su<b>m</b>mary</a></li>
+    <li><a href="${upr}/${task._id}/log" accesskey='i'>h<b>i</b>story</a></li>
+    <li><a href="${upr}/${task._id}/j" accesskey='j'><b>j</b>ournal</a></li>
+    <li class="divider-vertical"></li>
+    <li><a href="${upr}/s/new/${task._id}" accesskey='s'><b>s</b>ubtask</a></li>
+    -->
+% endif
+</ul>
+
+<hr />
+</%def>
+<%def name="content()">
+
+<form id="taskForm" method='post' class="form-horizontal">
+<input type="hidden" name="changed_at" value="${changed_at}" />
+${taskmenu()}
+% if msg:
+<div class='msg'>${msg}</div>
+% endif
+<div class='wrap' style="display:table;width:100%;">
+    <div style="display:table-row;">
+        <div style="display:table-cell;width:50%;">
+            <h2 class="task-title">Info</h2>
+                % if under:
+                <h4>under ${under}</h4>
+                <input type='hidden' name='under' value="${under}" />
+                % endif
+                <input type='hidden' name='id' value="${task._id}" />
+
+
+                <div class="control-group">
+                    <label for="summary" class="control-label">Created</label>
+                    <div class="controls" style="line-height: 30px;">
+                         ${task.created_at}
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="summary" class="control-label">Summary</label>
+                    <div class="controls">
+                        <input id="summary" class="form-control span7" type="text" name="summary" value="${task['summary']|h}" />
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">Tags</label>
+                    <div class="controls form-inline">
+                        % for tag in task['tags']:
+                        <label class="checkbox">
+                            <input type='checkbox' name="tag-${tag|h}" checked=1 value=1 />
+                            <a href="${upr}/tag/${tag}">${tag}</a> ;
+                        </label>
+                        % endfor
+                        <input type='text' name='tag-new' value="" id="inp-add-tag" placeholder="add tag(s)"/>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="sel-status" class="control-label">S<b>t</b>atus</label>
+                    <div class="controls">
+		      <% assert hasattr(task,'status'),"%s has no status"%task._id %>
+                        ${self.sel('status',statuses,task.status,attr='accesskey="t" id="sel-status"')}
+                    </div>
+                </div>
+		<hr />
+            % if task._id:
+                <div class="control-group">
+                  <% used = [] %>
+                    % for mgroup,ms in possible_metastates.items():
+                    <label class="control-label">${mgroup}</label>
+                    <div class="controls mini-table" >
+		    % for k in ms:
+                    <% if k in used: continue %>
+                    <% used.append(k) %>
+                        <% v = metastates.get(k) %>
+                        <label> ${k}: </label>
+                        ${self.metastate_sel(task._id,
+			                     k,
+			                     (v and v.get('value') or ''),
+			colors,
+			possible_metastates[mgroup],
+			overrides,
+			metastates,
+			allow_empty=True,
+			total_hours=0)}
+                        <br />
+		    % endfor
+                    </div><hr />
+                    % endfor
+                </div>
+            % endif
+                <div class="control-group">
+                    <label class="control-label">Assignee</label>
+                    <div class="controls">
+                      <a href="${upr}/assignments/${task.assignee}">${task.assignee}</a> &nbsp;
+                        change to ${self.sel('assignee',['']+participants,task.assignee)}
+                    </div>
+                </div>
+		<% hby = hasattr(task,'handled_by') and getattr(task,'handled_by') or None %>
+                <div class="control-group">
+                    <label class="control-label">Handled by</label>
+                    <div class="controls">
+                      <a href="${upr}/assignments/${hby}">${hby}</a> &nbsp;
+                        change to ${self.sel('handled_by',['']+participants,hby)}
+                    </div>
+                </div>
+
+		<div class="control-group">
+                    <label class="control-label">Cross-links</label>
+                    <div class="controls">
+                      add: <input type='text' name="add-cross_link" /><br />
+                      <input type="hidden" name="cross_links" value="${",".join(["-".join(i) for i in cross_links])}" />
+		      % for cl in cross_links:
+		       <input type='checkbox' name='cross_link-${cl[1]}' checked=1 value=1 /> <a href="${upr}/${cl[1]}">${cl[1]}</a> : ${get_task(cl[1]).summary}<br />
+		      % endfor
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">Creator</label>
+                    <div class="controls" style="line-height: 30px;">
+                        <a href="${upr}/assignments/${task.creator}">${task.creator}</a>
+                    </div>
+                </div>
+
+            % if task.links:
+                <div class="control-group">
+                    <label class="control-label">Links</label>
+                    <div class="controls">
+                        <ul class="unstyled">
+                            % for li in task.links:
+                            <li>  <input type='checkbox' name="link-${li['anchor']|h}" checked=1 value="${li['url']|h}" />  <a href="${li['url']}">${li['anchor']}</a> \
+			      (<a href="https://chart.googleapis.com/chart?chs=200x200&cht=qr&chld=|1&chl=${li['url']|h}">qr</a>)
+			    </li>
+                            % endfor
+                        </ul>
+                    </div>
+                </div>
+            % endif
+
+
+		<div class="control-group">
+                  <label class="control-label">Karma points</label>
+		  <%
+		     def flatten(rdarr,el):
+		         for k in el[1]:
+                             for k2 in el[1][k]:
+  		                 if k2 not in rdarr: rdarr[k2]=0
+  		                 rdarr[k2]+=el[1][k][k2]
+		         return rdarr
+		     karmaflat = reduce(flatten,getattr(task,'karma',{}).items(),{}) %>
+		  <div class="controls">
+		    % if hasattr(task,'karma'):
+		    <ul class="unstyled">
+		      % for kpart,kval in sorted(karmaflat.items(),lambda x,y: cmp(x[1],y[1]),reverse=True):
+		      <li>${kpart}: ${kval}</li>
+		      % endfor
+		    </ul>
+		    % endif
+		  </div>
+		</div>
+            % if hasattr(task,'informed') and task.informed:
+                <div class="control-group">
+                    <label class="control-label">Informed</label>
+                    <div class="controls">
+                        <ul class="unstyled">
+                            % for inf in task.informed:
+                            <li><input type="checkbox" name="informed-${inf|h}" checked=1 value=1 /><a href="${upr}/assignments/${inf}">${inf}</a></li>
+                            % endfor
+                        </ul>
+                    </div>
+                </div>
+            % endif
+
+            % if task.branches:
+                <div class="control-group">
+                    <label class="control-label">Repo/Branch</label>
+                    <div class="controls" style="width: 80%;"> 
+                        <table class="table table-hover">
+                            <thead><tr>
+                                <th>del</th>
+                                <th>repo/branch</th>
+                                % for db in diff_branches:
+                                <th>${db}</th>
+                                % endfor
+                            </tr></thead>
+                            % for br in task.branches:
+                            <tr>
+                                <% r,b = br.split('/') %>
+                                <td><input type='checkbox' name="branches-${br|h}" value="1" checked=1 /></td>
+                                <td><a href="${gwu}?p=${r}.git;a=shortlog;h=refs/heads/${b}">${r}/${b}</a></td>
+                                % for db in diff_branches:
+                                <td><a href="${gwu}?p=${r}.git;a=commitdiff;h=refs/heads/${b};hp=${db}">\
+				    % if br in branches_by_target.get(db,[]):
+				    <b>${db}</b>
+				    % else:
+				    ${db}
+				    % endif
+				</a></td>
+                                % endfor
+                            </tr>
+                            % endfor
+                        </table>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">Automerge</label>
+                    <div class="controls" style="width: 80%;">
+<pre>
+<% 
+for tgt,branches in branches_by_target.items():
+   defr = branches[0].split('/')[1] #task.branches[0].split('/')[1] 
+   context.write("# merge to %s:\n"%tgt)
+   context.write("./automerge.py --from=%s --to=%s --purge --linters --message='#%s: automerge to %s.' "%(defr,tgt,task._id,tgt)+' '.join([(rb.split('/')[1]!=defr and rb or rb.split('/')[0]) for rb in task.branches])+"\n\n")
+%>\
+</pre>
+                    </div>
+                </div>
+            % endif
+
+                <h4 style="text-align:center;">Add information <a id='showtog' href="#" style="font-size:12px;font-weight:normal;">graphical repr</a></h4> 
+
+                <div class="control-group">
+                    <label class="control-label">Link</label>
+                    <div class="controls mini-table">
+                        <label>Description:</label> <input type='text' name='link-new-anchor' /> <br/> 
+                        <label>URL:</label> <input type='text' name='link-new-url' />
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">Informed</label>
+                    <div class="controls">
+                        ${sel('informed-new',['']+participants,'')}
+                    </div>
+                </div>                
+
+                <div class="control-group">
+                    <label class="control-label">Repo/Branch</label>
+                    <div class="controls" >
+                       ${sel('branches-new-repo',repos,'')} / <input type='text' name='branches-new-branch' />
+                    </div>
+                </div>                                
+                
+                
+                 
+                <textarea id='content' class='content' name='unstructured'>${task.unstructured}</textarea>
+                <div id='contentwrapper'>
+                </div>
+                % if task._id:
+                <input class="btn btn-primary pull-right upd-btn" type='submit' value='Update' accesskey='a' style="position: relative;right: 2%;" />
+                % else:
+                    <input class="btn btn-primary pull-right" type='submit' value='Create' accesskey='a' name='create' style="position: relative;right: 2%;"/>
+                % endif
+            </form>
+
+
+        </div>
+        <div style="display:table-cell;border-left:1px solid silver;padding-left: 20px;">
+            % if task._id:
+                <h2 class="task-title">Journal</h2>
+                <div class='journal'>
+		  <h4>Add comment</h4>
+		  <textarea id="journalEditor" class='content' name='content-journal' style="width:100%;"></textarea>
+		  <input accesskey='a' type='submit' class="btn btn-primary pull-right" />
+                    <h4>Log</h4>
+                    % for jk,jg in j.items():
+                        % for ji in reversed(jg):
+                            <div class="message">
+                                <span class="message-author"><a href="${upr}/assignments/${ji['creator']}">${ji['creator']}</a></span>
+                                <span> | </span>
+                                <span class="message-datetime">${humanize.naturaltime(now-ji['created_at'])}</span>
+                                % if not 'unq_key' in ji['attrs'].keys() and ji['attrs'].items():
+                                <div class="message-status">
+                                    <b>changed status: </b>
+                                    ${'; '.join([u'%s  to "%s"'%(k,v) for k,v in ji['attrs'].items()])}
+                                </div>
+                                % endif
+                                <div class="message-text">
+                                    ${ji['content']|n}
+                                </div>
+                            </div>
+                        % endfor
+                    % endfor
+                </div>
+            % endif
+        </div>
+    </div>
+</div>
+
+% if len(children):
+<h3>Sub tasks</h3>
+${self.list_tasks(children)}
+% endif
+
+<script type='text/javascript'>
+    var tid = "${task._id}";    
+  window.onload = function() {
+    $('.custom-link').on('click', function  () {
+        location.href = $(this).attr('data-link');
+    })
+document.getElementById('summary').focus();
+document.getElementById('showtog').onclick = function(ev) {
+    var togel = document.getElementById('showtog');
+    var contel = document.getElementById('content');
+    var wrapel = document.getElementById('contentwrapper');
+    if (togel.innerHTML=='graphical repr')
+    {
+	var x = new XMLHttpRequest();
+	x.onreadystatechange = function() {
+            if(x.readyState == 4){
+		wrapel.innerHTML=x.response;
+		wrapel.style.display='';
+		contel.style.display='none';
+            }
+	}
+	x.open("GET",location.href.replace(location.pathname,'/repr'+location.pathname),true);
+	x.send(null);
+
+	togel.innerHTML='edit';
+    }
+    else
+    {
+	wrapel.style.display='none';
+	contel.style.display='';
+	togel.innerHTML='graphical repr';
+    }
+ev.preventDefault();
+  }
+
+      function check_updatability(cb) {
+	  var pst = {'changed_at':$('input[type=hidden][name=changed_at]').val()};
+	  $.post("/"+tid+"/validate",pst,cb);
+
+      }
+
+      function updcheck(ev) {
+	  ev.preventDefault();
+	  check_updatability(function(res) {
+	      var r = JSON.parse(res);
+	      //console.log('received',r);
+	      if (r.tid==tid && r.valid)
+	      {
+		  //console.log("firing submission event");
+		  $('#taskForm').submit();
+	      }
+	      else
+	      {
+		  alert("the task has been changed by "+r.changed_by+" else at "+r.changed_at+". please reload the page and retry.");
+	      }
+	  });
+      }
+      
+      $('.upd-btn').click(updcheck);
+      function check_updatability_cyclic() {
+	  //console.log('checking upd');
+	  check_updatability(function(res) {
+	      var r = JSON.parse(res);
+	      //console.log("res came in",r);
+	      if (r.valid)
+	      {
+		  //$('.upd-btn').attr('disabled',false);
+	      }
+	      else
+	      {
+		  $('.upd-btn').attr('disabled',true);
+		  $('.upd-btn').val('Changed by '+r.changed_by+' at '+r.changed_at);
+		  $('#taskForm').attr('disabled',true);
+	      }
+	      setTimeout(check_updatability_cyclic,5000);	      
+	  });
+      }
+      setTimeout(check_updatability_cyclic,5000);
+  }
+
+</script>
+<script>
+    $(function(){
+        Page.init();
+    });
+
+    var Page = {
+        usernames: JSON.parse('${usernames}'.replace(/&#39;/g, '"')),
+        domain: '${upr}',
+
+        init: function(){
+            var journalMsgs = $('.journal .message-text');
+            if(journalMsgs.length > 0){
+                journalMsgs.forEach(function (msg) {
+                    msg.innerHTML = marked(msg.innerHTML.trim());
+                    $(msg).find('pre code').each(function(i, block) {
+                        hljs.highlightBlock(block);
+                    })
+                });
+            }
+
+            $('#taskForm').submit(Page.eventHandlers.onFormSubmit);
+
+            Page.simpleMDE.init();
+        },
+
+        simpleMDE:{
+            editor: undefined,
+
+            init: function(){
+                Page.simpleMDE.editor = new SimpleMDE({
+                    element: $("#journalEditor")[0],
+                    lineWrapping: true,
+                    status: false,
+                    renderingConfig: {
+                        codeSyntaxHighlighting: true,
+                    },
+                    toolbar: [
+                        "heading", "bold", "italic",
+                        {
+                            name: "underline",
+                            action: Page.simpleMDE.customFunctions.underline,
+                            className: "fa fa-underline",
+                            title: "Underline Text"
+                        },
+                        "|",
+                        "quote", "unordered-list", "ordered-list", "code", "table", "horizontal-rule", "|",
+                        "link", "image", "|",
+                        "preview", "guide"
+                    ]
+                });
+            },
+
+            customFunctions:{
+                base: function(editor, openTag, closeTag){
+                    var cm = editor.codemirror;
+                    var selectedText = cm.getSelection();
+
+                    if(selectedText){
+                        cm.replaceSelection(openTag + selectedText + closeTag);
+                    }
+                },
+
+                underline: function(editor){
+                    Page.simpleMDE.customFunctions.base(editor, "<span class='underline'>", "</span>");
+                }
+            }
+        },
+
+        eventHandlers:{
+            onFormSubmit: function(){
+                var text = Page.simpleMDE.editor.value();
+                var userRegex = new RegExp(Page.usernames.join("|"), "g");
+
+                text = text.replace(/(\d+\/)+\d{0,}/g, "[$&](" + Page.domain + "/$&)");
+                text = text.replace(userRegex, "[$&](" + Page.domain + "/assignments/$&)");
+
+                Page.simpleMDE.editor.value(text);
+            }
+        }
+    };
+</script>
+</%def>
+<%def name="title()">${task and (getattr(task,'_id') and task._id+' - ' or '')+task.summary or ''}</%def>

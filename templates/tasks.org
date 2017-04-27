@@ -1,0 +1,33 @@
+<%def name="list_tasks(tasks,relpath=False)">
+<% import json %>
+| ID | Iteration | Summary | Assignee | Tags | Status | Children-statuses | Hours | Last tracked | Commits | Last commit |
+|----+-----------+---------+----------+------+--------+-------------------+-------+--------------+---------+-------------|
+% for sfn,sv in tasks:
+% if relpath:
+| [[file:${sv['story']}/index.org][${sv['story']}]]\
+% else:
+| [[file:${sv['iteration']}/${sv['story']}/index.org][${sv['story']}]]\
+% endif
+| ${sv['iteration']} | \
+% if 'priority' in sv['tags']:
+*\
+% endif
+${sv['summary'][0:40]+'..' if len(sv['summary'])>40 else sv['summary']}\
+% if 'priority' in sv['tags']:
+*\
+% endif
+ | ${sv['assigned to']} | ${', '.join(sv.get('tags',''))} | ${sv['status']} | ${statusagg.get(sv['id']) and ';'.join([':'.join([str(i1) for i1 in i]) for i in statusagg[sv['id']].items()]) or ''} | ${"%4.1f"%sv.get('total_hours',0)} | ${sv.get('last_tracked')} | ${sv['meta'].get('commits_qty')} | ${sv['meta'].get('last_commit')}  |
+% endfor
+</%def>
+<%def name="body()">
+#+OPTIONS: toc:nil        (no TOC at all)
+#+STYLE:    <link rel="stylesheet" type="text/css" href="/stylesheet.css" />
+* ${term} ${value} tasks
+
+% for s in statuses:
+% if s in stories:
+** ${s}
+${list_tasks(stories[s],relpath=relpath)}
+% endif
+% endfor
+</%def>

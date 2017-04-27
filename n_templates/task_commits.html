@@ -1,0 +1,45 @@
+<%inherit file="base.html" />
+<%def name="content()">
+<table>
+  <thead>
+    <tr>
+      <td>stats</td>
+      <td>author</td>
+      <td>created_at</td>
+      <td>rev</td>
+      <td>invalid</td>
+      <td>automergeto</td>
+      <td>repo</td>
+      <td>mergefrom</td>
+      <td>tid</td>
+      <td>ladds</td>
+      <td>message</td>
+    </tr>
+  </thead>
+  <tbody>
+% for c in commits:
+<tr>
+  % for k,v in c.items():
+  <td>
+    % if k=='invalid':
+    <input type='checkbox' class='invalid' id='invalid_${c['repo']}_${c['rev']}' value="1" ${v and " checked=1" or ""} />
+    % else:
+    ${v}
+    % endif
+  </td>
+  % endfor
+  </tr>
+% endfor
+</tbody>
+</table>
+<script type='text/javascript'>
+  $('.invalid').click(function(ev) {
+  var res = /invalid_(.*)_(.*)$/.exec(ev.target.id);
+  var repo = res[1];
+  var rev = res[2];
+  var pst = {'invalid':ev.target.checked}
+  console.log("repo",repo,"rev",rev,pst);
+  $.post("/commits/"+repo+"/"+rev,pst);
+  });
+</script>
+</%def>

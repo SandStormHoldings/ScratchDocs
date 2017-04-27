@@ -1,0 +1,15 @@
+<%inherit file="/task.html" />
+<%def name="content()">
+${self.taskmenu()}
+<h2>History for <a href="${upr}/${task['id']}">${task['id']}</a></h2> 
+<pre>${op|n}</pre>
+<script>
+$(function(){
+    $('.custom-link').on('click', function  () {
+        location.href = $(this).attr('data-link');
+    })
+})
+</script
+</%def>
+
+

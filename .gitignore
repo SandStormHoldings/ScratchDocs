@@ -1,0 +1,12 @@
+*~
+*.pyc
+venv
+config_local.py
+data
+README.html
+TODO.html
+tmp
+testdata
+celerybeat-schedulesupervisord.log
+supervisord.pid
+supervisord.log

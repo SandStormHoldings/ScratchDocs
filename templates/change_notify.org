@@ -1,0 +1,14 @@
+#+OPTIONS: toc:nil        (no TOC at all)
+** Task change ${t['story']} notification
+*** Details
+Dear ${recipient['Name']},
+A task which you relate to, [[${url+t['story']}][${t['story']}]], has been modified in commit [[${gitweb}?p=${docsrepo};a=commitdiff;h=${commit}][${commit}]] by ${body.get('author')}.
+- status :: ${t['status']}
+- summary :: ${t['summary']}
+*** Change
+#+BEGIN_EXAMPLE
+${'\n'.join(body.get('change',[]))}
+#+END_EXAMPLE
+*** See current tasks
+To see your current tasks, please go [[${url}][here]].
+

@@ -1,0 +1,21 @@
+#+OPTIONS: toc:nil        (no TOC at all)
+#+STYLE:    <link rel="stylesheet" type="text/css" href="/stylesheet.css" />
+* Demo ${iteration}
+${render_tree(l=trs['children'].items(),stars=2)}
+<%def name="render_tree(l,stars)">
+<% l.sort(lambda s1,s2: cmp(s1[1]['item']['assignee'],s2[1]['item']['assignee'])) %>\
+% for t,it in l:
+${''.join(['*' for i in range(stars)])} ${it['item']['status']} [[${rurl}/s/${it['item']['id']}][${t}]] - ${it['item']['summary']}\
+% if it['item']['assignee']!='None':
+                            :${it['item']['assignee']}:
+% else:
+                            :UNASSIGNED:
+% endif
+% if len(it['children']):
+${render_tree(it['children'].items(),stars+1)}\
+% endif
+% if stars==2:
+---------------------------
+% endif
+% endfor
+</%def>

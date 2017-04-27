@@ -1,0 +1,49 @@
+#+OPTIONS: toc:nil        (no TOC at all)
+#+STYLE:    <link rel="stylesheet" type="text/css" href="/stylesheet.css" />
+* Task ${story['story']} - ${story['summary']}
+** Webapp link [[${RENDER_URL}/w/task/${story['story']}][${story['story']}]]
+** In iteration [[/${story['iteration']}/][${story['iteration']}]]
+** [[file:../index.org][Up one level]]
+% if 'assigned to' in story:
+** Other tasks by ${story['assigned to']}
+- [[file:/assigned-${story['assigned to']}-alltime.org][all tasks]] 
+- [[file:/assigned-${story['assigned to']}-current.org][current tasks]]
+% endif
+% if len(children):
+** Sub tasks
+| Story | Assignee | Summary | Status |
+|-------+----------+---------+--------|
+% for st in children:
+|  [[file:${st['relpath']}][${st['story']}]]     | [[file:${'/'.join(['..' for i in xrange(len(story['iteration'].split('/'))+1)])}/assigned-${st['assigned to']}-current.org][${st['assigned to']}]] | ${st['summary']} | ${st['status']} |
+% endfor
+% endif
+% if meta and meta.get('commits_qty'):
+** Commits
+${meta['commits_qty']} commits, last commit on ${meta['last_commit']}.
+*** Commiters
+| Commiter | Repo   | Last commit |
+|----------+--------+-------------|
+<% meta['commiters'].sort(lambda c1,c2: cmp(pgd(meta['lastcommits'][c1]),pgd(meta['lastcommits'][c2])),reverse=True) %>\
+% for spl in meta['commiters']:
+<% repo,un = spl.split('-') %>\
+| ${un}    |${repo} | ${meta['lastcommits'][spl]} |
+% endfor
+*** Branches
+| Repo | Branch | Last commit |
+|------+--------+-------------|
+<% meta['branches'].sort(lambda c1,c2: cmp(pgd(meta['branchlastcommits'][c1]),pgd(meta['branchlastcommits'][c2])),reverse=True) %>\
+% for spl in meta['branches']:
+<% repo = spl.split('/')[0] ; branch = '/'.join(spl.split('/')[1:]) %>\
+| [[${GITWEB_URL}?p=${repo}.git;a=summary][${repo}]] | [[${GITWEB_URL}?p=${repo}.git;a=commitdiff;h=refs/heads/${branch};hp=staging][${branch}]] | ${meta['branchlastcommits'][spl]} |
+% endfor
+
+% endif
+% if story.get('total_hours'):
+** ${"%4.1f"%story['total_hours']} tracked in total
+| Person | Hours | Last tracked |
+|--------+-------+--------------|
+% for un,hrs in story['person_hours']:
+| ${un} | ${"%4.1f"%hrs['hours']} | ${hrs['last_tracked']} |
+% endfor
+% endif
+-------------------------------------

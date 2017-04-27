@@ -1,0 +1,17 @@
+#!/bin/bash
+cd /var/www/Docs
+#git borks in the hook if you don't do this
+unset GIT_DIR
+echo 'pulling latest master.'
+git pull origin master
+
+#@FIXME: the following is a security risk as the submodule can be replaced by arbitrary code:
+echo 'updating submodule.'
+git submodule update
+
+echo 'reindexing.'
+source venv/bin/activate
+python sd/tasks.py index
+python sd/tasks.py makehtml
+
+exit 0

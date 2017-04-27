@@ -1,0 +1,22 @@
+<%inherit file="/base.html" />
+<%def name="content()">
+<h2>${headline}</h2>
+<% cnt ={'cnt':0} %>
+${self.list_tasks([],header=True,body=False,footer=False)}
+% if not status:
+	% for st in statuses:
+		% if st in tasks:
+			<% tsks = tasks[st] %>
+			% if len(tsks):
+				<tr><td colspan=8 style='text-align:center;font-weight:bold;background-color:#cdb'>${st}</td></tr>
+				${self.list_tasks(tsks,header=False,body=True,footer=False,cnt=cnt)}
+			% endif
+		% endif
+	% endfor
+% else:
+	<% tsks = tasks[status] %>
+	<tr><td colspan=8 style='text-align:center;font-weight:bold;background-color:#cdb'>${status}</td></tr>
+	${self.list_tasks(tsks,header=False,body=True,footer=False,cnt=cnt)}
+% endif
+${self.list_tasks([],header=False,body=False,footer=True)}
+</%def>

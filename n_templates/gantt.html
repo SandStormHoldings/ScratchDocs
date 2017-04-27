@@ -1,0 +1,91 @@
+<%inherit file="/base.html" />
+<%def name="content()">
+[ 
+% for fn in ['week','trplweek','month','year']:
+<a href="#" class='zoom' id='zoom_${fn}'>${fn}</a> :: 
+% endfor
+scales
+] |
+<a href="#" id='gantt_save'>save</a> |
+<div id="gantt_here" style='width:100%; min-height:800px;'></div>
+<script type='text/javascript'>
+  $(function() { zoom_tasks('year'); });
+  $('#gantt_save').click(function(ev) {
+  var pst = {'obj':JSON.stringify(gantt.json.serialize())};
+  $.post("/g/save",pst,function(repl,repl2) {
+  console.log(repl,repl2);
+  alert('save response returned');
+  });
+  });
+  $('.zoom').click(function(ev) {
+  zoom_tasks(/^zoom_(.*)$/.exec(ev.target.id)[1]);
+  });
+
+		function zoom_tasks(nodevalue){
+			switch(nodevalue){
+				case "week":
+					gantt.config.scale_unit = "day"; 
+					gantt.config.date_scale = "%d %M"; 
+
+					gantt.config.scale_height = 60;
+					gantt.config.min_column_width = 30;
+					gantt.config.subscales = [
+  						  {unit:"hour", step:1, date:"%H"}
+					];
+					//show_scale_options("hour");
+				break;
+				case "trplweek":
+					gantt.config.min_column_width = 70;
+					gantt.config.scale_unit = "day"; 
+					gantt.config.date_scale = "%d %M"; 
+					gantt.config.subscales = [ ];
+					gantt.config.scale_height = 35;
+					//show_scale_options("day");
+				break;
+				case "month":
+					gantt.config.min_column_width = 70;
+					gantt.config.scale_unit = "week"; 
+					gantt.config.date_scale = "Week #%W"; 
+					gantt.config.subscales = [
+  						  {unit:"day", step:1, date:"%D"}
+					];
+					//show_scale_options();
+					gantt.config.scale_height = 60;
+				break;
+				case "year":
+					gantt.config.min_column_width = 70;
+					gantt.config.scale_unit = "month"; 
+					gantt.config.date_scale = "%M"; 
+					gantt.config.scale_height = 60;
+					//show_scale_options();
+					gantt.config.subscales = [
+  						  {unit:"week", step:1, date:"#%W"}
+					];
+				break;
+			}
+			//set_scale_units();
+  gantt.render();
+		}
+
+function HtmlEncode(s)
+{
+  var el = document.createElement("div");
+  el.innerText = el.textContent = s;
+  s = el.innerHTML;
+  return s;
+}
+  
+  var stasks=${tasks|n};
+  gantt.config.columns[0].template = function(obj) {
+  //console.log(obj);
+      return "<a href='/"+obj.id+"'>"+HtmlEncode(obj.id+': '+obj.summary)+"</a>";
+  }
+  gantt.config.columns[2].template=function(obj) { return ''; } 
+  gantt.init('gantt_here');
+  gantt.config.json_date = "%Y-%m-%dT%H:%i:%sZ";
+
+  //gantt.addTask/addLink, gantt.updateTask/updateLink, gantt.deleteTask/deleteLink
+
+  gantt.parse(stasks,type='json');
+</script>
+</%def>

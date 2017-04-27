@@ -1,0 +1,109 @@
+<%inherit file="/task.html" />
+
+<%def name="new_entry()">
+    <h4>New entry</h4> 
+    <form class="form-horizontal" method='post' action="${upr}/s/${task['id']}/j/new">
+        <h5>metastates</h3>
+        % for ms,vals in metastates.items():
+        <div class="control-group">
+            <label class="control-label">${ms}</label>
+            <div class="controls">
+                <select name='${ms}'>
+                    <option value="">..</option>
+                    % for v in vals:
+                    <option value="${v}">${v}</option>
+                    % endfor
+                </select>
+            </div>
+        </div>
+        % endfor
+        <h5>content</h3>
+        <textarea class='content' name='content'></textarea>
+        <input accesskey='a' type='submit' class="btn btn-primary pull-right" />
+    </form>
+</%def>
+
+<%def name="content()">
+<style type='text/css'>
+.journal p {
+/*    display:inline;*/
+}
+</style>
+% if task:
+    ${self.taskmenu()}
+    ${new_entry()}
+% else:
+    <h2>Global journal</h2>
+    <ul class="nav nav-pills">
+        <li><a href="${upr}/journal/filter/day/current">today's entries</a></li>
+        <li><a href="${upr}/journal/filter/creator/${user}">entries for ${user}</a></li>
+        <li><a href="${upr}/journal/groupby/creator">grouped by creator</a></li>
+        <li><a href="${upr}/journal/groupby/tid">grouped by task</a></li>
+        <li><a href="${upr}/journal/filter/day/current/groupby/creator">today's grouped by creator</a></li>
+	<li><a href="${upr}/journal/filter/state/merge%20to%20staging=merged/day/2014-10-01:2014-10-31">october merges to staging</a></li>
+	<li><a href="${upr}/journal/filter/state/functional%20review=needed/day/2016-06-01:2016-06-21">june 2016 tasks on func review</a></li>
+    </ul>
+% endif
+    <div class='journal'>
+        % for jk,jg in j.items():
+        <h3>\
+% if groupby=='tid':
+<a href="${upr}/${jg[0]['tid']}">${jk}</a>\
+% else:
+${jk}\
+% endif
+<% from couchdb import Task %>
+</h3>
+<table>
+<thead style='background-color:#cdb'>
+<tr>
+	<th>entry date</th>
+	<th>entry by</th>
+	<th>task id</th>
+	<th>entry</th>
+	<th>c</th>
+	<th>creator</th>
+	<th>assignee</th>
+	<th>parent(s)</th>
+	<th>task summary</th>
+	<th>task tags</th>
+</tr>
+</thead>
+            % for ji in reversed(jg):
+            <% t = Task.get(ji['tid']) %>
+            <tr>
+
+	    <td style='font-size:60%'>${ji['created_at']}</td>
+
+            <td>
+            % if groupby!='creator':
+                <a href="${upr}/assignments/${ji['creator']}">${ji['creator']}</a>
+            % endif
+            </td>
+	    <td style='text-align:right'>
+            % if not task and groupby!='tid':
+                <a href="${upr}/${ji['tid']}">${ji['tid']}</a>
+            % endif
+            </td>
+            <td style='font-size:60%'>${'; '.join([u'%s = %s'%(k,v) for k,v in ('attrs' in ji and ji['attrs'].items() or [])])}</td>
+	    % if 'content' in ji:
+	    <td>${ji.get('content')}</td>
+	    % else:
+	    <td>--</td>
+	    % endif
+            <td><a href="${upr}/assignments/${t.assignee}">${t.assignee}</a></td>
+            <td><a href="${upr}/assignments/${t.creator}">${t.creator}</a></td>
+            <td style='font-size:60%;text-align:right;'>
+<% l = len(t._id.split('/')) %>
+% for pt in [Task.get('/'.join(t._id.split('/')[0:i])) for i in range(1,l)]:
+<a href="/${t._id.split('/')[0:i]}">${pt.summary}</a> &#8250;
+% endfor
+            </td>
+	    <td>${t['summary']}</td>
+	    <td style='font-size:60%;text-align:right'>${",".join(["<a href='%s/tag/%s'>%s</a>"%(upr,tag,tag) for tag in t.tags])|n}</td>
+            </tr>
+            % endfor
+</table>
+    % endfor
+    </div>
+</%def>

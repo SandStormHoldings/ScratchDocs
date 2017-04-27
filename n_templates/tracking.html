@@ -1,0 +1,39 @@
+<%inherit file="/base.html" />
+<%def name="content()">
+<h4>hours tracking for ${fr} - ${to}</h4>
+<table>
+<thead>
+  <tr>
+    <th>person/descr</th>
+    <th>task</th>
+    <th>hours</th>
+    <th>remaining</th>
+    </tr>
+</thead>
+<% tot =0 %>
+% for p,h in tracked:
+<% tot+=h %>
+<tr class="bold" style='background-color:#bac'>
+  <td><a href="${upr}/assignments/${p}"><b>${p}</b></a></td>
+  <td></td>
+  <td class="ralign">${"%4.2f"%h}</td>
+  <td></td>
+</tr>
+<% items = tasksums[p].items() ; items.sort(lambda x,y: cmp(x[1],y[1]),reverse=True)%>
+% for tid,h in items:
+<tr>
+  <td>${tdescrs[tid]}</td>
+  <td><a href="${upr}/${tid}">${tid}</a></td>
+  <td class="ralign">${"%4.2f"%h}</td>
+  <td class="ralign ${testimates[tid].startswith('-') and 'msg' or ''}">${testimates[tid]}</td>
+</tr>
+% endfor
+% endfor
+<tr style='background-color:#abc'>
+  <td>TOT</td>
+  <td></td>
+  <td class="ralign">${"%4.2f"%tot}</td>
+  <td></td>
+</tr>
+</table>
+</%def>
