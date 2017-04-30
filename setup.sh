@@ -150,22 +150,22 @@ function run_all() {
 }
 
 function start() {
-    docker start pg couch redis tasks
+    docker start pg couch redis tasks_py tasks_celery
 }
 
 function stop() {
-    docker stop pg couch redis tasks    
+    docker stop pg couch redis tasks_py tasks_celery
     }
 function restart_all() {
-    docker restart pg couch redis tasks
+    docker restart pg couch redis tasks_py tasks_celery
 }
 
 function attach() {
-    docker attach tasks
+    docker attach tasks_py
 }
 
 function restart() { # app only
-    docker restart tasks
+    docker restart tasks_py
     }
 function all() {
     clean_all &&
