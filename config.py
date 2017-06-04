@@ -109,6 +109,7 @@ PG_DSN='host=localhost dbname=%s'%PG_DBNAME
 REDIS_BROKER='redis://localhost'
 EXCEPTION_FLAVOR='html'
 EMAIL_RECIPIENTS_IGNOREMASK=[]
+NO_GEVENT_MONKEYPATCH=False
 from noodles_config import *
 from config_local import *
 import os

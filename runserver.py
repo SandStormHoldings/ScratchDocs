@@ -7,7 +7,7 @@ filedesc: helper script to launch GameServer
 from config import NO_GEVENT_MONKEYPATCH
 
 if not NO_GEVENT_MONKEYPATCH:
-    import psycogreen
+    import psycogreen.gevent
     psycogreen.gevent.patch_psycopg()
 
 from noodles.app import startapp

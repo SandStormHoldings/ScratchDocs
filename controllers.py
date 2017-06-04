@@ -33,12 +33,9 @@ from functools import partial
 def db(function):
     """ this decorator acquires a db connection from the pool as well as a cursor from the connection and passes both on to its client. """
     def wrap_function(*args, **kwargs):
-        # kwargs['P']=None
-        # kwargs['C']=None
-        # return function(*args,**kwargs)
         with P as p:
             kwargs['P']=p
-            kwargs['C']=None #p.cursor()
+            kwargs['C']=p.cursor()
             return function(*args, **kwargs)
     return wrap_function
 

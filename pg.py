@@ -26,37 +26,31 @@ class ConnectionPool(object):
         self._sem.acquire()
         #print('acquired')
         try:
-            # if getattr(self._local, 'con', None) is not None:
-            #     #raise RuntimeError("Attempting to re-enter connection pool?")
-            #     con = self._local.con
-            #     print('WARNING: returning existing connection!')
-            #     return con
-            # if self._free:
-            #     con = self._free.pop()
-            # else:
-            #     con = 'string'
-            #     # con = psycopg2.connect(
-            #     #     dsn=self.dsn, connection_factory=self.connection_factory)
-            # self._local.con = con
-            # return con
-            self._local.con = None
-            pass
+            if getattr(self._local, 'con', None) is not None:
+                con = self._local.con
+                print('WARNING: returning existing connection (re-entered connection pool)!')
+            if self._free:
+                con = self._free.pop()
+            else:
+                con = psycopg2.connect(
+                    dsn=self.dsn, connection_factory=self.connection_factory)
+            self._local.con = con
+            return con
         except: # StandardError:
             self._sem.release()
             raise
 
     def __exit__(self, exc_type, exc_value, traceback):
         try:
-            # if self._local.con is None:
-            #     raise RuntimeError("Exit connection pool with no connection?")
-            # if exc_type is not None:
-            #     self.rollback()
-            # else:
-            #     self.commit()
-            # if len(self._free) < self.max_idle:
-            #     self._free.append(self._local.con)
-            # self._local.con = None
-            pass
+            if self._local.con is None:
+                raise RuntimeError("Exit connection pool with no connection?")
+            if exc_type is not None:
+                self.rollback()
+            else:
+                self.commit()
+            if len(self._free) < self.max_idle:
+                self._free.append(self._local.con)
+            self._local.con = None
         finally:
             self._sem.release()
             #print('released')
