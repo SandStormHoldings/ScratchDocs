@@ -91,7 +91,8 @@ function storage_restore_dump() {
 
     envs_obtain &&
     couchdb-dump/couchdb-backup.sh -c -r -H $COUCHHOST -d tasks -f "$1" &&
-    psql "postgresql://tasks:$PW@$PGHOST/tasks" < "$2"
+    psql "postgresql://tasks:$PW@$PGHOST/tasks" < "$2" &&
+    storage_details_print
 }
 function pgconn() {
     envs_obtain
@@ -100,7 +101,12 @@ function pgconn() {
 function couchconn() {
     envs_obtain
     curl 'http://'$COUCHHOST":5984"
-    }
+}
+function storage_details_print() {
+    echo "PGHOST=$PGHOST ; PGPASSWORD=$PW # psql postgres://tasks:$PW@$PGHOST/tasks" &&
+    echo "COUCHHOST=$COUCHHOST # http://$COUCHHOST:5984/_utils/"
+}
+
 function storage_populate() {
     envs_obtain &&
     echo '# LOADING POSTGRESQL DUMP' &&
@@ -110,9 +116,7 @@ function storage_populate() {
     wait_for $COUCHHOST 5984 "couch" &&
     docker run -u $IDU -ti --link redis --link couch --link pg -v $PWD":/home/tasks" --entrypoint=/home/tasks/docker/py/write_config.sh tasks/py &&
     docker run -u $IDU -ti --link redis --link couch --link pg -v $PWD":/home/tasks" --entrypoint=./couchdb_query.py tasks/py &&
-    echo "PGHOST=$PGHOST ; PGPASSWORD=$PW" &&
-    echo "COUCHHOST=$COUCHHOST"
-    
+    storage_details_print
 }
 
 function launch_app() {
@@ -166,7 +170,12 @@ function attach() {
 
 function restart() { # app only
     docker restart tasks_py
-    }
+}
+function restart_hard_and_log() {
+    app_clean &&
+	launch_app &&
+	docker attach tasks_py 2>&1 | tee tasks_py.log &
+}
 function all() {
     clean_all &&
 	install_prerequisites &&

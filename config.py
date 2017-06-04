@@ -107,6 +107,7 @@ KARMA_POINTS_PER_DAY=4
 PG_DBNAME='tasks'
 PG_DSN='host=localhost dbname=%s'%PG_DBNAME
 REDIS_BROKER='redis://localhost'
+EXCEPTION_FLAVOR='html'
 EMAIL_RECIPIENTS_IGNOREMASK=[]
 from noodles_config import *
 from config_local import *

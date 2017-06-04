@@ -33,9 +33,12 @@ from functools import partial
 def db(function):
     """ this decorator acquires a db connection from the pool as well as a cursor from the connection and passes both on to its client. """
     def wrap_function(*args, **kwargs):
+        # kwargs['P']=None
+        # kwargs['C']=None
+        # return function(*args,**kwargs)
         with P as p:
             kwargs['P']=p
-            kwargs['C']=p.cursor()
+            kwargs['C']=None #p.cursor()
             return function(*args, **kwargs)
     return wrap_function
 
@@ -199,6 +202,17 @@ def index(request,P,C,gethours=False):
                              ,get_admin(request,'unknown')
                              ,mode='notdone'
                              ,gethours=gethours)
+    return rt
+
+@ajax_response #render_to('iteration.html')
+@db
+def test(request,P,C): #,P,C,gethours=False):
+    rt= {}# assignments_itn_func(request
+          #                    ,P
+          #                    ,C
+          #                    ,get_admin(request,'unknown')
+          #                    ,mode='notdone'
+          #                    ,gethours=gethours)
     return rt
 
 @render_to('iteration.html')
@@ -840,7 +854,7 @@ def queue(request,P,C,assignee=None,archive=False,metastate_group='merge'):
     if assignee=='me':
         assignee=get_admin(request,'unknown')
     queue={}
-    print 'cycling journals'
+    #print 'cycling journals'
     for t in get_journals():
         if assignee and t.assignee!=assignee: continue
 
@@ -861,7 +875,7 @@ def queue(request,P,C,assignee=None,archive=False,metastate_group='merge'):
                 relevant_metastates=True
                 break
         if not relevant_metastates: continue
-        print 'reading journal'
+        #print 'reading journal'
         jitems = read_journal(t)
         lupd = sorted(cm.values(),lambda x1,x2: cmp(x1['updated'],x2['updated']),reverse=True)
         if len(lupd): lupd=lupd[0]['updated']
@@ -875,7 +889,7 @@ def queue(request,P,C,assignee=None,archive=False,metastate_group='merge'):
             if not lupd or jlupd >=lupd:
                 lupd = jlupd
         #assert t.get('total_hours')!='None'
-        print 'adding to queue'
+        #print 'adding to queue'
         queue[tid]={'states':dict([(cmk,cmv['value']) for cmk,cmv in cm.items()]),
                     #'total_hours':t.get('total_hours',0),
                     'fullstates':cm,

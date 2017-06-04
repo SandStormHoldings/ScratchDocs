@@ -1,8 +1,9 @@
 import psycopg2
 import psycopg2.extras
-from gevent.lock import Semaphore
+from gevent.lock import BoundedSemaphore as Semaphore
 from gevent.local import local as gevent_local
 from config import PG_DSN
+from gevent import sleep
 
 # migration stuff
 import json
@@ -11,7 +12,7 @@ from datetime import datetime,date
 import decimal
 
 class ConnectionPool(object):
-    def __init__(self, dsn, max_con=10, max_idle=3,
+    def __init__(self, dsn, max_con=12, max_idle=3,
                  connection_factory=psycopg2.extras.RealDictConnection):
         self.dsn = dsn
         self.max_con = max_con
@@ -23,33 +24,42 @@ class ConnectionPool(object):
 
     def __enter__(self):
         self._sem.acquire()
+        #print('acquired')
         try:
-            if getattr(self._local, 'con', None) is not None:
-                raise RuntimeError("Attempting to re-enter connection pool?")
-            if self._free:
-                con = self._free.pop()
-            else:
-                con = psycopg2.connect(
-                    dsn=self.dsn, connection_factory=self.connection_factory)
-            self._local.con = con
-            return con
-        except StandardError:
+            # if getattr(self._local, 'con', None) is not None:
+            #     #raise RuntimeError("Attempting to re-enter connection pool?")
+            #     con = self._local.con
+            #     print('WARNING: returning existing connection!')
+            #     return con
+            # if self._free:
+            #     con = self._free.pop()
+            # else:
+            #     con = 'string'
+            #     # con = psycopg2.connect(
+            #     #     dsn=self.dsn, connection_factory=self.connection_factory)
+            # self._local.con = con
+            # return con
+            self._local.con = None
+            pass
+        except: # StandardError:
             self._sem.release()
             raise
 
     def __exit__(self, exc_type, exc_value, traceback):
         try:
-            if self._local.con is None:
-                raise RuntimeError("Exit connection pool with no connection?")
-            if exc_type is not None:
-                self.rollback()
-            else:
-                self.commit()
-            if len(self._free) < self.max_idle:
-                self._free.append(self._local.con)
-            self._local.con = None
+            # if self._local.con is None:
+            #     raise RuntimeError("Exit connection pool with no connection?")
+            # if exc_type is not None:
+            #     self.rollback()
+            # else:
+            #     self.commit()
+            # if len(self._free) < self.max_idle:
+            #     self._free.append(self._local.con)
+            # self._local.con = None
+            pass
         finally:
             self._sem.release()
+            #print('released')
 
     def commit(self):
         self._local.con.commit()

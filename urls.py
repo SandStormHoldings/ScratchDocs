@@ -31,6 +31,7 @@ def get_map():
 
         (URL_PREFIX+'/commits/{repo:.*}/{rev:.*}','controllers#commit_validity'),
         (URL_PREFIX+'/', 'controllers#index'),
+        (URL_PREFIX+'/test', 'controllers#test'),
         (URL_PREFIX+'/tr', 'controllers#index',{'gethours':True}),
 
         (URL_PREFIX+'/karma','controllers#karma'),
