@@ -201,15 +201,11 @@ def index(request,P,C,gethours=False):
                              ,gethours=gethours)
     return rt
 
-@ajax_response #render_to('iteration.html')
+@ajax_response
 @db
-def test(request,P,C): #,P,C,gethours=False):
-    rt= {}# assignments_itn_func(request
-          #                    ,P
-          #                    ,C
-          #                    ,get_admin(request,'unknown')
-          #                    ,mode='notdone'
-          #                    ,gethours=gethours)
+def test(request,P,C):
+    """ used to debug database pool issues """
+    rt= {}
     return rt
 
 @render_to('iteration.html')
