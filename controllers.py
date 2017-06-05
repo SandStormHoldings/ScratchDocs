@@ -6,7 +6,7 @@ from noodles.http import Response
 
 import dateutil.parser
 from tasks import gso
-from config import STATUSES,RENDER_URL,DATADIR,URL_PREFIX,NOPUSH,NOCOMMIT,METASTATES
+from config import STATUSES,RENDER_URL,DATADIR,URL_PREFIX,NOPUSH,NOCOMMIT,METASTATES,APP_DIR
 from config_local import WEBAPP_FORCE_IDENTITY
 from noodles.http import Redirect,BaseResponse,Response,ajax_response,Error403
 from webob import exc
@@ -987,7 +987,7 @@ def metastate_set(request,P,C):
 def favicon(request):
     response = BaseResponse()
     response.headerlist=[('Content-Type', 'image/x-icon')]
-    f = open('favicon.ico').read()
+    f = open(os.path.join(APP_DIR,'favicon.ico')).read()
     response.body = f
     return response
 
@@ -998,7 +998,7 @@ def assets(request, r_type=None, r_file=None):
         'fonts': 'application/octet-stream',
         'img': 'image/*',
     }
-    fname = '/'.join(['assets', r_type, r_file])
+    fname = os.path.join(APP_DIR,'/'.join(['assets', r_type, r_file]))
 
     if r_type not in map:
         return HTTPNotFound(fname)
