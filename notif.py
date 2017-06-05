@@ -12,7 +12,7 @@ sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 
 vers={}
 
-lstre = re.compile('^/(cross_links|branches|tags|informed)/')
+lstre = re.compile('^/(cross_links|branches|tags|informed)')
 urlre = re.compile('http(|s)\:\/\/([^\/]+)/([^ ]*)',re.I)
 jenkre = re.compile('job/([^/]+)/([^ ]+)')
 def jenkshorten(sval):
