@@ -27,7 +27,9 @@ ${self.icons([tag[0]])}\
 <script type='text/javascript'>
   $(function() {
   $('.pri').change(function(ev) {
-  console.log(ev.target);
+  var name = /^pri-(.*)$/.exec($(ev.target).attr('name'))[1];
+  var val = $(ev.target).val();
+  $.post("${upr}/tag-pri",{'name':name,'val':val});
   });
   });
   </script>

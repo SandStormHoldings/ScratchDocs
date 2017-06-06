@@ -58,8 +58,11 @@ def get_map():
         (URL_PREFIX+'/st', 'controllers#storage'),
         (URL_PREFIX+'/participants', 'controllers#participants'),
         (URL_PREFIX+'/tags', 'controllers#tags'),
+        (URL_PREFIX+"/tag-pri",'controllers#tag_pri'),
         (URL_PREFIX+'/tag/{tag}', 'controllers#bytag'),
 
+        (URL_PREFIX+'/pri','controllers#prioritization'),
+        
         # tasks go here.
 
         (URL_PREFIX+'/search','controllers#search'),

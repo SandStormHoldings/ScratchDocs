@@ -31,6 +31,32 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
+-- Name: tasks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE tasks (
+    id character varying NOT NULL,
+    parent_id character varying,
+    contents json,
+    show_in_gantt boolean DEFAULT true,
+    changed_at timestamp without time zone,
+    changed_by character varying(32)
+);
+
+
+--
+-- Name: assignees; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW assignees AS
+ SELECT (tasks.contents ->> 'assignee'::text) AS assignee,
+    count(*) AS cnt
+   FROM tasks
+  GROUP BY (tasks.contents ->> 'assignee'::text)
+  ORDER BY (count(*)) DESC;
+
+
+--
 -- Name: commits; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -81,20 +107,6 @@ CREATE TABLE ssm_tracking (
     note character varying,
     tids character varying[],
     offline boolean
-);
-
-
---
--- Name: tasks; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE tasks (
-    id character varying NOT NULL,
-    parent_id character varying,
-    contents json,
-    show_in_gantt boolean DEFAULT true,
-    changed_at timestamp without time zone,
-    changed_by character varying(32)
 );
 
 
@@ -185,6 +197,18 @@ CREATE VIEW gantt AS
 
 
 --
+-- Name: handlers; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW handlers AS
+ SELECT (tasks.contents ->> 'handled_by'::text) AS hndlr,
+    count(*) AS cnt
+   FROM tasks
+  GROUP BY (tasks.contents ->> 'handled_by'::text)
+  ORDER BY (count(*)) DESC;
+
+
+--
 -- Name: journal_entries; Type: VIEW; Schema: public; Owner: -
 --
 
@@ -221,6 +245,18 @@ CREATE TABLE participants (
 CREATE TABLE repos (
     name character varying NOT NULL
 );
+
+
+--
+-- Name: statuses; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW statuses AS
+ SELECT (tasks.contents ->> 'status'::text) AS status,
+    count(*) AS cnt
+   FROM tasks
+  GROUP BY (tasks.contents ->> 'status'::text)
+  ORDER BY (count(*)) DESC;
 
 
 --

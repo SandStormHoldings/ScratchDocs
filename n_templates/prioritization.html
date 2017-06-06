@@ -1,0 +1,13 @@
+<%inherit file="/base.html" />
+<%def name="content()">
+% for fn in fields:
+<h4>${fn}</h4>
+
+% for st,cnt in values[fn]['avail'].items():
+<label><input type='checkbox' name="${st}" value="1" ${st in values[fn]['set'] and " checked" or ""} />${st} - ${cnt}</label>
+% endfor
+
+% endfor
+
+
+</%def>

@@ -57,10 +57,13 @@ function build_app() {
 
 function envs_obtain() {
     REDISHOST=$(docker inspect redis | jq '.[0].NetworkSettings.Networks.bridge.IPAddress' | sed 's/"//g')
+    
+    pgconnstr
     echo "REDISHOST=$REDISHOST"
 
+    PW="passw0rd"
     PGHOST=$(docker inspect pg | jq '.[0].NetworkSettings.Networks.bridge.IPAddress' | sed 's/"//g')
-    echo "PGHOST=$PGHOST"
+    echo "PGHOST=$PGHOST  # $PGCONNSTR"
     
     COUCHHOST=$(docker inspect couch | jq '.[0].NetworkSettings.Networks.bridge.IPAddress' | sed 's/"//g')
     echo "COUCHHOST=$COUCHHOST"

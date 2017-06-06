@@ -76,6 +76,16 @@ sortmodes={'default':srt,
            'parents':lambda x,y: cmp(x['id'],y['id']),
 }
 
+@ajax_response
+@db
+def tag_pri(request,P,C):
+    qry = "INSERT INTO tags (name, pri) VALUES (%s, %s) ON CONFLICT (name) DO UPDATE SET pri = %s"
+    nm = request.params.get('name')
+    val = request.params.get('val')
+    with P as p:
+        C = p.cursor()
+        C.execute(qry,(nm,val,val))
+    return {'name':nm,'val':val}
 def get_admin(r,d):
 
     if WEBAPP_FORCE_IDENTITY:
@@ -274,6 +284,23 @@ def validate_save(request,P,C,task):
             'changed_at':vs[1],
             'changed_by':vs[2],
     }
+
+@render_to('prioritization.html')
+@db
+def prioritization(request,P,C):
+    C.execute("select * from statuses")
+    statuses = dict([(r['status'],r['cnt']) for r in C.fetchall()])
+    C.execute("select * from assignees")
+    assignees = dict([(r['assignee'],r['cnt']) for r in C.fetchall()])
+    C.execute("select * from handlers")
+    handlers = dict([(r['hndlr'],r['cnt']) for r in C.fetchall()])
+    fields = ['statuses','assignees','handlers']
+    rt={'fields':fields,
+        'values':{}}
+    for fn in fields:
+        rt['values'][fn]={'avail':locals()[fn],
+                          'set':[]}
+    return basevars(request,P,C,rt)
 
 @render_to('task.html')
 @db
@@ -653,7 +680,8 @@ def incoming(request,P,C,tags=[],limit=300):
     })
 
 @ajax_response
-def gantt_save(request):
+@db
+def gantt_save(request,P,C):
     o = json.loads(request.params.get('obj'))
     with P as p:
         C = p.cursor()
