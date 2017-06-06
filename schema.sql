@@ -2,11 +2,12 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 9.5.6
--- Dumped by pg_dump version 9.5.6
+-- Dumped from database version 9.6.1
+-- Dumped by pg_dump version 9.6.1
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SET check_function_bodies = false;
@@ -223,6 +224,16 @@ CREATE TABLE repos (
 
 
 --
+-- Name: tags; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE tags (
+    name character varying NOT NULL,
+    pri integer
+);
+
+
+--
 -- Name: task_hierarchy; Type: VIEW; Schema: public; Owner: -
 --
 
@@ -309,7 +320,7 @@ UNION
 
 
 --
--- Name: commits_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: commits commits_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY commits
@@ -317,7 +328,7 @@ ALTER TABLE ONLY commits
 
 
 --
--- Name: participants_email_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: participants participants_email_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY participants
@@ -325,7 +336,7 @@ ALTER TABLE ONLY participants
 
 
 --
--- Name: participants_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: participants participants_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY participants
@@ -333,7 +344,7 @@ ALTER TABLE ONLY participants
 
 
 --
--- Name: participants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: participants participants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY participants
@@ -341,7 +352,7 @@ ALTER TABLE ONLY participants
 
 
 --
--- Name: participants_skype_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: participants participants_skype_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY participants
@@ -349,7 +360,7 @@ ALTER TABLE ONLY participants
 
 
 --
--- Name: repos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: repos repos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY repos
@@ -357,7 +368,7 @@ ALTER TABLE ONLY repos
 
 
 --
--- Name: ssm_tracking_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ssm_tracking ssm_tracking_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY ssm_tracking
@@ -365,7 +376,15 @@ ALTER TABLE ONLY ssm_tracking
 
 
 --
--- Name: tasks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: tags tags_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY tags
+    ADD CONSTRAINT tags_pkey PRIMARY KEY (name);
+
+
+--
+-- Name: tasks tasks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY tasks
@@ -373,7 +392,7 @@ ALTER TABLE ONLY tasks
 
 
 --
--- Name: tracking_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: tracking tracking_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY tracking
@@ -381,7 +400,7 @@ ALTER TABLE ONLY tracking
 
 
 --
--- Name: upw_tracking_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: upw_tracking upw_tracking_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY upw_tracking
@@ -389,7 +408,7 @@ ALTER TABLE ONLY upw_tracking
 
 
 --
--- Name: tasks_parent_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: tasks tasks_parent_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY tasks

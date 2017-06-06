@@ -2,6 +2,14 @@
 <%def name="content()">
 <h2>Tags</h2>
 <table class="table table-striped table-bordered table-hover">
+  <thead>
+    <tr>
+      <td>used</td>
+      <td>name</td>
+      <td>priority</td>
+      <td>actions</td>
+      </tr>
+  </thead>
 % for tag in tags:
     <tr>
         <td class="span2">
@@ -11,8 +19,16 @@
 ${tag[0]}\
 ${self.icons([tag[0]])}\
 </td>
-<td><a href="${upr}/metastates/tags-${tag[0]}">metastates breakup</a></td>
+	<td><input type='number' class='pri' name="pri-${tag[0]}" value="${pri.get(tag[0],0)}" />
+	<td><a href="${upr}/metastates/tags-${tag[0]}">metastates breakup</a></td>
     </tr>
 % endfor
 </table>
+<script type='text/javascript'>
+  $(function() {
+  $('.pri').change(function(ev) {
+  console.log(ev.target);
+  });
+  });
+  </script>
 </%def>

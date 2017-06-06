@@ -515,9 +515,18 @@ def task(request,P,C,task):
 @db
 def tags(request,P,C):
     tags = get_tags()
+    tags_pri={}
+    with P as p:
+        C = p.cursor()
+        C.execute("select * from tags")
+        fa = C.fetchall()
+        for tr in fa:
+            tags_pri[tr['name']]=tr['pri']
     tags = tags.items()
+    
     tags.sort(lambda x1,x2: cmp(x1[1],x2[1]),reverse=True)
-    rt = {'tags':tags}
+    rt = {'tags':tags,'pri':tags_pri}
+
     return basevars(request,P,C,rt)
 
 @render_to('iteration.html')

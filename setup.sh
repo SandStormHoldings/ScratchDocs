@@ -1,9 +1,14 @@
 #!/bin/bash
 
-
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PWD=$(pwd)
 IDU=$(id -u)
 IDG=$(id -g)
+
+PGCONNSTR=""
+function pgconnstr() {
+    PGCONNSTR="postgres://tasks:$PW@$PGHOST/tasks"
+}
 
 function wait_for() {
     HOST="$1"
@@ -41,7 +46,7 @@ function clean_all() {
     }
 
 function install_prerequisites() {
-    sudo apt install jq postgresql-client-common postgresql-client &&
+    sudo apt install jq postgresql-client-common postgresql-client dos2unix &&
     git submodule update --init --recursive
     }
 
@@ -85,26 +90,36 @@ function storage_restore_dump() {
     fi
     if [ -z "$2" ]
     then
-	echo 'storage_restore_dump: ERROR: $2 must be name of psql dump file'
+	echo 'storage_restore_dump: ERROR: $2 must be name of sql dump file'
 	return 2
     fi
 
     envs_obtain &&
-    couchdb-dump/couchdb-backup.sh -c -r -H $COUCHHOST -d tasks -f "$1" &&
-    psql "postgresql://tasks:$PW@$PGHOST/tasks" < "$2" &&
-    storage_details_print
+	wait_for $COUCHHOST 5984 "couch" &&
+	couchdb-dump/couchdb-backup.sh -c -r -H $COUCHHOST -d tasks -f "$1" &&
+	wait_for $PGHOST 5432 "pg" &&
+	psql "postgresql://tasks:$PW@$PGHOST/tasks" < "$2" &&
+	storage_details_print
 }
+
 function pgconn() {
     envs_obtain
-    psql "postgresql://tasks:$PW@$PGHOST/tasks"
+    pgconnstr && psql "$PGCONNSTR"
 }
+
 function couchconn() {
     envs_obtain
     curl 'http://'$COUCHHOST":5984"
 }
+
 function storage_details_print() {
+    s="$(pgconnstr)"
     echo "PGHOST=$PGHOST ; PGPASSWORD=$PW # psql postgres://tasks:$PW@$PGHOST/tasks" &&
     echo "COUCHHOST=$COUCHHOST # http://$COUCHHOST:5984/_utils/"
+}
+
+function schema_save() {
+    docker exec -t pg pg_dump -U postgres -N pg_catalog -x --no-owner --schema-only tasks | grep -v 'plpgsql' > $DIR"/schema.sql"
 }
 
 function storage_populate() {
