@@ -116,7 +116,7 @@ def asgn(request,
          gethours=False):
     in_tasks = get_fns(assignee=person,created=created,handled_by=handled_by,informed=informed,recurse=recurse,query=query,tag=tag,newer_than=newer_than,tids=tids,recent=recent)
     tasks={}
-    print 'got initial ',len(in_tasks),' tasks; cycling'
+    #print 'got initial ',len(in_tasks),' tasks; cycling'
     for t in in_tasks:
         tlp = get_parent(t._id,tl=True)
         assert hasattr(t,'status'),"%s with no status"%t._id

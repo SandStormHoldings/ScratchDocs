@@ -119,7 +119,7 @@ function storage_details_print() {
 }
 
 function schema_save() {
-    docker exec -t pg pg_dump -U postgres -N pg_catalog -x --no-owner --schema-only tasks | grep -v 'plpgsql' > $DIR"/schema.sql"
+    docker exec -t pg pg_dump -U postgres -N pg_catalog -x --no-owner --schema-only tasks | grep -v 'plpgsql' > $DIR"/schema.sql" && dos2unix $DIR"/schema.sql"
 }
 
 function storage_populate() {
@@ -133,17 +133,32 @@ function storage_populate() {
     docker run -u $IDU -ti --link redis --link couch --link pg -v $PWD":/home/tasks" --entrypoint=./couchdb_query.py tasks/py &&
     storage_details_print
 }
-
+function celery_cmd() {
+    if [[ "$1" == "" ]] ; then
+	FL="-d"
+    else
+	FL=""
+    fi
+    docker run -u $IDU $FL --name=tasks_celery --link redis  --link couch --link pg -v $PWD":/home/tasks" --entrypoint /home/tasks/docker/py/celery.sh tasks/py
+    }
+runserver_cmd() {
+    if [[ "$1" == "" ]] ; then
+	FL="-d"
+    else
+	FL=""
+    fi
+    docker run -u $IDU $FL --name=tasks_py --link redis  --link couch --link pg -v $PWD":/home/tasks" --entrypoint /home/tasks/docker/py/runserver.sh  tasks/py
+    }
 function launch_app() {
     
-    echo '# RUNNING tasks/py' &&
-    docker run -u $IDU -d --name=tasks_py --link redis  --link couch --link pg -v $PWD":/home/tasks" --entrypoint /home/tasks/docker/py/runserver.sh  tasks/py &&
     echo '# RUNNING tasks/celery' &&
-    docker run -u $IDU -d --name=tasks_celery --link redis  --link couch --link pg -v $PWD":/home/tasks" --entrypoint /home/tasks/docker/py/celery.sh tasks/py &&	
-    envs_obtain &&
-    wait_for $PYHOST 8090 "py" &&
-    echo '# ALL IS READY' &&
-    echo "PYHOST=$PYHOST ; http://$PYHOST:8090/"
+	celery_cmd &&
+	echo '# RUNNING tasks/py' &&
+	runserver_cmd $1 &&
+	envs_obtain &&
+	wait_for $PYHOST 8090 "py" &&
+	echo '# ALL IS READY' &&
+	echo "PYHOST=$PYHOST ; http://$PYHOST:8090/"
     
 }
 
@@ -191,6 +206,11 @@ function restart_hard_and_log() {
 	launch_app &&
 	docker attach tasks_py 2>&1 | tee tasks_py.log &
 }
+function restart_hard_and_attach() {
+    app_clean &&
+	launch_app "1"
+
+    }
 function all() {
     clean_all &&
 	install_prerequisites &&

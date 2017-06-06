@@ -6,8 +6,8 @@ import os
 DEBUG = True
 TESTING = True
 
-NO_GEVENT_MONKEYPATCH=True
-DONT_USE_GEVENT=True
+NO_GEVENT_MONKEYPATCH=False
+DONT_USE_GEVENT=False
 AUTO_RELOAD = False #DONT_USE_GEVENT #only supported by paster
 
 # Specify the server port
