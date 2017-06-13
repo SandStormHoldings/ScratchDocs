@@ -97,7 +97,7 @@ METASTATE_URLS = {'q':'merge',
                   'pr':'production',}
 
 METASTATES_OVERRIDES={
-    'merged':"""fullstates.get(k) and fullstates.get(k).get('updated').strftime('%Y-%m-%d %H:%M') or ''""",
+    'merged':"""fullstates.get(k) and fullstates.get(k).get('updated') or ''""",
     'passed':"""(fullstates.get(k) and 'by '+fullstates.get(k).get('updated by','')) or ''""",
 }
 DIFF_BRANCHES=['staging','preproduction','production','master'] #display diff links to gitweb for those baseline branches

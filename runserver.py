@@ -9,7 +9,7 @@ from config import NO_GEVENT_MONKEYPATCH
 if not NO_GEVENT_MONKEYPATCH:
     import psycogreen.gevent
     psycogreen.gevent.patch_psycopg()
-    import gevent.monkey 
+    import gevent.monkey
     gevent.monkey.patch_all()
 
 from noodles.app import startapp

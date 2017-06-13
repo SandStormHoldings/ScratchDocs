@@ -12,11 +12,11 @@ from noodles.http import Redirect,BaseResponse,Response,ajax_response,Error403
 from webob import exc
 from noodles.templates import render_to
 from docs import initvars
-from pg import get_repos,get_usernames,hasperm,get_participants,get_all_journals,get_children
+from pg import get_repos,get_usernames,hasperm,hasperm_db,get_participants,get_all_journals,get_children,get_journals
 import config as cfg
 initvars(cfg)
 from docs import cre,date_formats,parse_attrs,get_fns,get_parent_descriptions,get_task,rewrite,get_new_idx,add_task,get_parent,flush_taskfiles_cache,tasks_validate, get_karma, get_karma_receivers
-from docs import loadmeta,org_render,parsegitdate,read_current_metastates,read_journal,render_journal_content,append_journal_entry,get_journals,get_tags,Task,get_latest,metastates_agg,metastates_qry,P, gantt_info,gantt_info_row
+from docs import loadmeta,org_render,parsegitdate,read_current_metastates,read_journal,render_journal_content,append_journal_entry,get_tags,Task,get_latest,metastates_agg,metastates_qry,P, gantt_info,gantt_info_row
 from couchdb import get_cross_links
 import codecs
 import copy
@@ -43,9 +43,15 @@ def db(function):
 # needed for n_templates/base.html
 def basevars(request,P,C,ext):
     u = get_admin(request,'unknown')
-    
+    C.execute("select unnest(perms) p from participants where username=%s and active=true",(u,))
+    perms = C.fetchall()
+    if len(perms):
+        perms = [r['p'] for r in perms]
+    else:
+        perms = []
+
     rt = {'user':u,
-          'hasperm':partial(hasperm,C,u)}
+          'hasperm':partial(hasperm,perms)}
     rt2 = rt.copy()
     rt2.update(ext)
     return rt2
@@ -265,8 +271,9 @@ def iteration_notdone(request,P,C,iteration):
 @render_to('karma.html')
 @db
 def karma(request,P,C):
-    adm = get_admin(request,'unknown')    
-    if not hasperm(C,adm,'karma'): return Error403('no sufficient permissions for %s'%adm)    
+    adm = get_admin(request,'unknown')
+    if not hasperm_db(C,adm,'karma'): return Error403('no sufficient permissions for %s'%adm)
+
     received={}
     k = get_karma_receivers()
     return basevars(request,P,C,{'receivers':k})
@@ -704,7 +711,7 @@ def gantt_save(request,P,C):
 @db
 def time_tracking_dashboard(request,P,C,rangeback='7 day',persons=None,mode='provider',tids=None):
     adm = get_admin(request,'unknown')
-    if not hasperm(C,adm,'gantt'): return Error403('no sufficient permissions for %s'%adm)
+    if not hasperm_db(C,adm,'gantt'): return Error403('no sufficient permissions for %s'%adm)
 
     if persons:
         cond = "dt>=now()-interval '%s' and provider in (%s)"%(rangeback,",".join(["'%s'"%p for p in persons.split(",")]))
@@ -779,7 +786,7 @@ def time_tracking_dashboard(request,P,C,rangeback='7 day',persons=None,mode='pro
 @db
 def gantt(request,P,C):
     adm = get_admin(request,'unknown')
-    if not hasperm(C,adm,'gantt'): return Error403('no sufficient permissions for %s'%adm)    
+    if not hasperm_db(C,adm,'gantt'): return Error403('no sufficient permissions for %s'%adm)    
     res = C.execute("select id from tasks where show_in_gantt=false")
     fa = C.fetchall()
     dismissed = [r['id'] for r in fa if r]
@@ -878,25 +885,25 @@ def commit_validity(request,repo,rev):
     C.execute(qry,arr)
     P.commit()
     return {'result':0}
+
 @render_to('queue.html')
 @db
 def queue(request,P,C,assignee=None,archive=False,metastate_group='merge'):
+    #print('queue()')
     if assignee=='me':
         assignee=get_admin(request,'unknown')
     queue={}
-    #print 'cycling journals'
-    for t in get_journals():
-        if assignee and t.assignee!=assignee: continue
-
-        if metastate_group!='production':
-            if not archive and t['status'] in cfg.DONESTATES: continue
-            elif archive and t['status'] not in cfg.DONESTATES: continue
-
-        tid = t._id
-        #print t
-        assert t.status,"could not get status for %s"%tid
-        #print 'reading metastates'
-        cm,content = read_current_metastates(t,True)
+    #print('get_journals()')
+    gj = get_journals(P,C,
+                      assignee=assignee,
+                      metastate_group=metastate_group,
+                    archive=archive
+    )
+    for tj in gj:
+        t = tj['contents']
+        tid = t['_id']
+        #print('going over task',tid)
+        cm,content = read_current_metastates(tj['contents'],True)
 
         #skip this task if has no metastates relevant to us
         relevant_metastates=False
@@ -928,18 +935,18 @@ def queue(request,P,C,assignee=None,archive=False,metastate_group='merge'):
                     'summary':t['summary'],
                     'last entry':content,
                     'tags':t['tags'],
-                    'assignee':t.assignee,
-                    'merge':[l['url'] for l in t.links if l['anchor']=='merge doc'],
-                    'job':[l['url'] for l in t.links if l['anchor']=='job'],
-                    'specs':[l['url'] for l in t.links if l['anchor']=='specs']}
-    print 'done. itemizing'
+                    'assignee':t['assignee'],
+                    'merge':[l['url'] for l in t['links'] if l['anchor']=='merge doc'],
+                    'job':[l['url'] for l in t['links'] if l['anchor']=='job'],
+                    'specs':[l['url'] for l in t['links'] if l['anchor']=='specs']}
     queue = queue.items()
-    print 'sorting'
-    queue.sort(lambda x1,x2: cmp((x1[1]['last updated'] and x1[1]['last updated'] or datetime.datetime(year=1970,day=1,month=1)),(x2[1]['last updated'] and x2[1]['last updated'] or datetime.datetime(year=1970,day=1,month=1))),reverse=True)
+    queue.sort(lambda x1,x2: cmp(
+        (x1[1]['last updated'] and datetime.datetime.strptime(x1[1]['last updated'].split('.')[0],'%Y-%m-%dT%H:%M:%S') or datetime.datetime(year=1970,day=1,month=1)),
+        (x2[1]['last updated'] and datetime.datetime.strptime(x2[1]['last updated'].split('.')[0],'%Y-%m-%dT%H:%M:%S') or datetime.datetime(year=1970,day=1,month=1))),reverse=True)
 
 
     metastate_url_prefix = dict (zip(cfg.METASTATE_URLS.values(),cfg.METASTATE_URLS.keys()))[metastate_group]
-    print 'rendering'
+    #print('rendering')
     return basevars(request,P,C,{'queue':queue,
             'metastate_group':metastate_group,
             'metastate_url_prefix':metastate_url_prefix,

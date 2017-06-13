@@ -2,7 +2,7 @@ import psycopg2
 import psycopg2.extras
 from gevent.lock import BoundedSemaphore as Semaphore
 from gevent.local import local as gevent_local
-from config import PG_DSN
+from config import PG_DSN,DONESTATES
 from gevent import sleep
 
 # migration stuff
@@ -24,7 +24,6 @@ class ConnectionPool(object):
 
     def __enter__(self):
         self._sem.acquire()
-        #print('acquired')
         try:
             if getattr(self._local, 'con', None) is not None:
                 con = self._local.con
@@ -37,7 +36,9 @@ class ConnectionPool(object):
             self._local.con = con
             return con
         except: # StandardError:
+            #print('releasing')
             self._sem.release()
+            #print('released')
             raise
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -83,6 +84,31 @@ def json_serial(obj):
     return serial
     raise TypeError ("Type not serializable")
 
+def get_journals(P,C,assignee=None,metastate_group='merge',archive=False):
+    qry = "select * from tasks where 1=1" #journal_entries where 1=1" 
+    args=[]
+    if assignee=='all': assignee=None
+    if assignee:
+        qry+=" and contents->>'assignee'=%s"
+        args.append(assignee)
+    if metastate_group:
+        if metastate_group!='production':
+            if not archive:                #and t['status'] in cfg.DONESTATES: continue
+                qry+=" and contents->>'status' not in %s"
+                args.append(tuple(DONESTATES))
+            elif archive: #and t['status'] not in cfg.DONESTATES: continue
+                qry+=" and status in %s"
+                args.append(tuple(DONESTATES))
+            else:
+                raise Exception('wtf')
+    
+    args = tuple(args) ;
+
+    C.execute(qry,args)
+    rt=[]
+    for r in C.fetchall():
+        rt.append(r)
+    return rt
 def journal_digest(j):
     rt={}
     for i in j:
@@ -167,11 +193,15 @@ def get_usernames(C):
     res = C.fetchall()
     return [r['username'] for r in res]
 
-def hasperm(C,perm,user):
+def hasperm_db(C,perm,user):
     qry = "select count(*) cnt from participants where username=%s and %s=any(perms) and active=true"
     C.execute(qry,(perm,user))
     o = C.fetchone()
     rt = o['cnt'] and True or False
+    return rt
+
+def hasperm(perms,perm):
+    rt = perm in perms
     #print(qry,(user,perm),'=>',rt)
     return rt
 

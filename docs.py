@@ -1528,14 +1528,14 @@ def read_current_metastates_worker(items,metainfo=False):
 
 def read_current_metastates(t,metainfo=False):
     content=None
-    items = t.journal
+    items = t['journal']
     return read_current_metastates_worker(items,metainfo),content
 
 def read_journal(t,date_limit=None,state_limit=None):
     assert not date_limit,NotImplementedError('date_limit')
     assert not state_limit,NotImplementedError('state_limit')
     try:
-        rt = (t.journal)
+        rt = (t['journal'])
     except:
         raise Exception(t)
         # print t

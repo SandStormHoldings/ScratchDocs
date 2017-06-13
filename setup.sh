@@ -201,6 +201,10 @@ function attach() {
     docker attach tasks_py
 }
 
+function shell() {
+    docker exec -ti tasks_py /bin/sh
+}
+
 function restart() { # app only
     docker restart tasks_py
 }
@@ -221,9 +225,9 @@ function all() {
 	init_and_run
 }
 
-if [[ "$0" != "bash" ]] ; then
+if [[ "$0" != "bash" && "$0" != "-bash" ]] ; then
     all
-    #echo "ERROR: you must source this script first. $ source setup.sh"
+    #echo "ERROR ($0): you must source this script first. $ source setup.sh"
 else
 echo "#####################################################"    
 echo "the following top level commands are available (view source for all):"

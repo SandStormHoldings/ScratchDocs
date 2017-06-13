@@ -29,7 +29,7 @@ if 'priority' in upd['tags']:
 %>
 <tr class="${classname}">
   <td><a href="${upr}/${tid}">${tid}</a></td>
-  <td><a href="${upr}/${tid}">${upd.get('last updated') and  upd.get('last updated').strftime('%Y-%m-%d %H:%M') or '--'}</a></td>
+  <td><a href="${upr}/${tid}">${upd.get('last updated') and  upd.get('last updated') or '--'}</a></td>
   <td>${upd['assignee']}</td>
   <td>${upd['summary']}</td>
   <td class="td-center-align">${upd['status']}</td>
