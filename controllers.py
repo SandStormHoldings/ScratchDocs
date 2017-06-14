@@ -85,6 +85,9 @@ sortmodes={'default':srt,
 @ajax_response
 @db
 def tag_pri(request,P,C):
+    adm = get_admin(request,'unknown')
+    if not hasperm_db(C,adm,'prioritization'): return Error403('no sufficient permissions for %s'%adm)
+    
     qry = "INSERT INTO tags (name, pri) VALUES (%s, %s) ON CONFLICT (name) DO UPDATE SET pri = %s"
     nm = request.params.get('name')
     val = request.params.get('val')
@@ -348,7 +351,7 @@ def prioritization(request,P,C):
         elif vset:
             raise Exception(fn,vset)
     qry+=" order by tot_pri desc,crat desc "
-    print('executing:',qry,params)
+    #print('executing:',qry,params)
     C.execute(qry,params)
     orders={}
     cnt=0

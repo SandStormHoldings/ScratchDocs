@@ -5,9 +5,9 @@
 
   <div class="span4">
     <form id='pri_form' method='get' action='${upr}/pri'>
-      <input type='button' id='pri_filter_toggle' value='Toggle all' /><br />
+      <input type='button' class='pri_filter_toggle' id='toggle-all' value='Toggle all' /><br />
       % for fn in fields:
-      <h4>${fn}</h4>
+      <h4>${fn} <input type='button' class='pri_filter_toggle' id='toggle-${fn}' value="toggle" /><br /></h4>
       
       % for st,cnt in sorted(values[fn]['avail'].items(),lambda x,y: cmp(x[1],y[1]),reverse=True):
 ##      <% if fn=='assignees': raise Exception(values[fn]['set']) %>
@@ -50,9 +50,15 @@
 
 <script type='text/javascript'>
   $(function() {
-  $('#pri_filter_toggle').on('click',function() {
+  $('.pri_filter_toggle').on('click',function(ev) {
+  var t = ev.target;
+  var tog = t.id.split("-")[1];
   console.log('toggling');
-  $('.pri_filter').each(function() { this.checked = !this.checked; });
+  $('.pri_filter').each(function() {
+  if (tog=='all') this.checked = !this.checked;
+  else if (this.name.startsWith(tog)) this.checked = !this.checked;
+
+  });
   $('#pri_form').submit();
   });
   $('.pri_filter').change(function() { $('#pri_form').submit(); });
