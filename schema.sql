@@ -303,6 +303,12 @@ CREATE VIEW task_hierarchy AS
 CREATE VIEW tasks_pri AS
  SELECT
         CASE
+            WHEN (td.crat >= (now() - '1 day'::interval)) THEN 'new'::text
+            WHEN (td.crat >= (now() - '30 days'::interval)) THEN 'recent'::text
+            WHEN (td.crat >= (now() - '1 year'::interval)) THEN 'old'::text
+            ELSE 'ancient'::text
+        END AS age,
+        CASE
             WHEN (sum(g.pri) IS NULL) THEN (0)::bigint
             ELSE sum(g.pri)
         END AS tot_pri,

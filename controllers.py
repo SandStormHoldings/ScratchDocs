@@ -298,7 +298,9 @@ def prioritization(request,P,C):
     adm = get_admin(request,'unknown')
     if not hasperm_db(C,adm,'prioritization'): return Error403('no sufficient permissions for %s'%adm)
     
-    fields = ['statuses','assignees','handlers']
+    fields = ['ages','statuses','assignees','handlers']
+    agesl = ['new','recent','old','ancient']
+    ages = dict([(agesl[i],chr(ord('a')+i)) for i in range(len(agesl))])
     C.execute("select * from statuses")
     statuses = dict([(r['status'],r['cnt']) for r in C.fetchall()])
     C.execute("select * from assignees")
@@ -317,6 +319,9 @@ def prioritization(request,P,C):
             vset = locals()[fn].keys()
             if fn=='statuses':
                 for ds in cfg.DONESTATES: vset.remove(ds)
+            elif fn=='ages':
+                vset.remove('ancient')
+                vset.remove('old')
         else:
             vset = ['-'.join(k.split('-')[1:]) for k in request.params if k.startswith(fn+'-')]
 
@@ -337,9 +342,12 @@ def prioritization(request,P,C):
         elif vset and fn=='handlers':
             qry+=" and hby in %s"
             params.append(vset)
+        elif vset and fn=='ages':
+            qry+=" and age in %s"
+            params.append(vset)
         elif vset:
             raise Exception(fn,vset)
-    qry+=" order by tot_pri desc"
+    qry+=" order by tot_pri desc,crat desc "
     print('executing:',qry,params)
     C.execute(qry,params)
     orders={}
