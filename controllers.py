@@ -295,18 +295,81 @@ def validate_save(request,P,C,task):
 @render_to('prioritization.html')
 @db
 def prioritization(request,P,C):
+    adm = get_admin(request,'unknown')
+    if not hasperm_db(C,adm,'prioritization'): return Error403('no sufficient permissions for %s'%adm)
+    
+    fields = ['statuses','assignees','handlers']
     C.execute("select * from statuses")
     statuses = dict([(r['status'],r['cnt']) for r in C.fetchall()])
     C.execute("select * from assignees")
     assignees = dict([(r['assignee'],r['cnt']) for r in C.fetchall()])
     C.execute("select * from handlers")
     handlers = dict([(r['hndlr'],r['cnt']) for r in C.fetchall()])
-    fields = ['statuses','assignees','handlers']
+    
     rt={'fields':fields,
         'values':{}}
+    if not len(request.params):
+        setall=True
+    else:
+        setall=False
     for fn in fields:
+        if setall:
+            vset = locals()[fn].keys()
+            if fn=='statuses':
+                for ds in cfg.DONESTATES: vset.remove(ds)
+        else:
+            vset = ['-'.join(k.split('-')[1:]) for k in request.params if k.startswith(fn+'-')]
+
         rt['values'][fn]={'avail':locals()[fn],
-                          'set':[]}
+                          'set':vset}
+    qry ="select * from tasks_pri where 1=1"
+    params=[]
+    for fn in fields:
+        vset1 = rt['values'][fn]['set']
+        vsetraw = [v=='None' and None or v for v in vset1]
+        vset = tuple(vsetraw)
+        if vset and fn=='statuses':
+            qry+=" and st in %s"
+            params.append(vset)
+        elif vset and fn=='assignees':
+            qry+=" and asgn in %s"
+            params.append(vset)
+        elif vset and fn=='handlers':
+            qry+=" and hby in %s"
+            params.append(vset)
+        elif vset:
+            raise Exception(fn,vset)
+    qry+=" order by tot_pri desc"
+    print('executing:',qry,params)
+    C.execute(qry,params)
+    orders={}
+    cnt=0
+    assignees={}
+    handlers={}
+    statuses={}
+    for tp in C.fetchall():
+        cnt+=1
+        a = tp['asgn']
+        if a not in orders: orders[a]=[]
+        orders[a].append(tp)
+
+        if a not in assignees: assignees[a]=0
+        assignees[a]+=1
+        h = tp['hby']
+        if h not in handlers: handlers[h]=0
+        handlers[h]+=1
+        s = tp['st']
+        if s not in statuses: statuses[s]=0
+        statuses[s]+=1
+    rt['tasks_cnt']=cnt
+    rt['handlers']=handlers
+    rt['statuses']=statuses
+    rt['assignees']=assignees
+    rt['orders'] = orders
+    rt['recent'] = datetime.datetime.now()-datetime.timedelta(days=30)
+    rt['humanize'] = humanize
+    rt['doingstates'] = cfg.DOINGSTATES
+    rt['donestates'] = cfg.DONESTATES
     return basevars(request,P,C,rt)
 
 @render_to('task.html')

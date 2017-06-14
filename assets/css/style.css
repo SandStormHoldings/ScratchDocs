@@ -52,13 +52,18 @@ iframe.rndr {
 .red {
     background-color:red !important;
 }
+.blue {
+    color:blue;
+}
 .bold {
 font-weight:bold;
 }
 .underline{
 	text-decoration: underline;
 }
-
+.strikethrough {
+    text-decoration: line-through;
+}
 /* Maxim */
 
 table.tasks-queue th{

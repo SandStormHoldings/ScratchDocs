@@ -14,14 +14,15 @@ from tasks t
 left outer join (
 select
 	id,
-       contents->>'created_at' crat,
+	contents->>'summary' summary,
+       cast(contents->>'created_at' as timestamp) crat,
        contents->>'status' st,
        contents->>'assignee' asgn,
        contents->>'handled_by' hby
        from tasks 
 ) td on td.id=t.id
 
-group by t.id,td.id,td.crat,td.st,td.asgn,td.hby
+group by t.id,td.id,td.summary,td.crat,td.st,td.asgn,td.hby
 order by tot_pri desc
 
 

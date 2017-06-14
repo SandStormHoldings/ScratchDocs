@@ -1,13 +1,61 @@
 <%inherit file="/base.html" />
 <%def name="content()">
-% for fn in fields:
-<h4>${fn}</h4>
 
-% for st,cnt in values[fn]['avail'].items():
-<label><input type='checkbox' name="${st}" value="1" ${st in values[fn]['set'] and " checked" or ""} />${st} - ${cnt}</label>
-% endfor
+<div class="row">
 
-% endfor
+  <div class="span4">
+    <form id='pri_form' method='get' action='${upr}/pri'>
+      <input type='button' id='pri_filter_toggle' value='Toggle all' /><br />
+      % for fn in fields:
+      <h4>${fn}</h4>
+      
+      % for st,cnt in sorted(values[fn]['avail'].items(),lambda x,y: cmp(x[1],y[1]),reverse=True):
+##      <% if fn=='assignees': raise Exception(values[fn]['set']) %>
+      <label><input class='pri_filter' type='checkbox' name="${fn}-${st}" value="1" ${(st is None and 'None' or st) in values[fn]['set'] and " checked" or ""} />${st} - ${cnt}</label>
+      % endfor
+      
+      % endfor
+    </form>
+  </div>
 
+  <div class="span8">
+    <h5>displaying ${tasks_cnt} tasks, handled by ${len(handlers)}, assigned to ${len(assignees)} and having ${len(statuses)} different statuses.</h5>
+    <table>
+      <thead>
+	<tr>
+	  <th>assignee</th>
+	</tr>
+	</thead>
+    % for a,lst in sorted(orders.items(),lambda x,y: cmp(len(x[1]),len(y[1])),reverse=True):
+    <tr>
+      <td><a href="${upr}/assignments/${a}">${a}</a></td>
+      % for l in lst:
+      <td>
+	<a title="${l['summary'].decode('utf-8')}" href="${upr}/${l['id']}" target='_blank'>${l['id']}</a>
+	<span title="priority">(${l['tot_pri']})</span>
+	<span class="${l['st'] in doingstates and 'doing blue' or (l['st'] in donestates and 'done strikethrough' or 'notdoing')}">${l['st']}</span>, \
+	<span class="${l['crat']<recent and 'old' or 'recent bold'}">${humanize.naturaltime(l['crat'])}</span>\
+	% if l['hby']:
+	h.by ${l['hby']}
+	% endif
 
+      </td>
+      % endfor
+      </tr>
+    % endfor
+    </table>
+  </div>
+
+</div>
+
+<script type='text/javascript'>
+  $(function() {
+  $('#pri_filter_toggle').on('click',function() {
+  console.log('toggling');
+  $('.pri_filter').each(function() { this.checked = !this.checked; });
+  $('#pri_form').submit();
+  });
+  $('.pri_filter').change(function() { $('#pri_form').submit(); });
+  });
+  </script>
 </%def>

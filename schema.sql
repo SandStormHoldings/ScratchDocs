@@ -297,6 +297,41 @@ CREATE VIEW task_hierarchy AS
 
 
 --
+-- Name: tasks_pri; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW tasks_pri AS
+ SELECT
+        CASE
+            WHEN (sum(g.pri) IS NULL) THEN (0)::bigint
+            ELSE sum(g.pri)
+        END AS tot_pri,
+    td.id,
+    td.summary,
+    td.crat,
+    td.st,
+    td.asgn,
+    td.hby
+   FROM ((tags g
+     RIGHT JOIN LATERAL ( SELECT t_1.id,
+            json_array_elements_text((t_1.contents -> 'tags'::text)) AS tag
+           FROM tasks t_1) t ON (((g.name)::text = t.tag)))
+     LEFT JOIN ( SELECT tasks.id,
+            (tasks.contents ->> 'summary'::text) AS summary,
+            ((tasks.contents ->> 'created_at'::text))::timestamp without time zone AS crat,
+            (tasks.contents ->> 'status'::text) AS st,
+            (tasks.contents ->> 'assignee'::text) AS asgn,
+            (tasks.contents ->> 'handled_by'::text) AS hby
+           FROM tasks) td ON (((td.id)::text = (t.id)::text)))
+  GROUP BY t.id, td.id, td.summary, td.crat, td.st, td.asgn, td.hby
+  ORDER BY
+        CASE
+            WHEN (sum(g.pri) IS NULL) THEN (0)::bigint
+            ELSE sum(g.pri)
+        END DESC;
+
+
+--
 -- Name: tracking; Type: TABLE; Schema: public; Owner: -
 --
 
