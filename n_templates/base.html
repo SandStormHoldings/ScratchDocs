@@ -196,7 +196,7 @@ ${self.icons(t['tags'])}\
 ## % endif
 &nbsp;
 </td>
-<td>${t.pri}</td>
+<td>${hasattr(t,'pri') and t.pri or '--'}</td>
 </tr>
 <% cnt['cnt']+=1 %>
 % endfor
