@@ -61,8 +61,8 @@ def srt(t1,t2):
     t1ids = [int(tp) for tp in (t1._id.split('/'))]
     t2ids = [int(tp) for tp in (t2._id.split('/'))]
 
-    t1ids.insert(0,t1['pri'])
-    t2ids.insert(0,t2['pri'])
+    t1ids.insert(0,hasattr(t1,'pri') and getattr(t1,'pri') or 0)
+    t2ids.insert(0,hasattr(t2,'pri') and getattr(t2,'pri') or 0)
     t1idsc = copy.copy(t1ids)
     t2idsc = copy.copy(t2ids)
     print('cmp:',t1ids,t2ids)
