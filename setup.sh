@@ -101,7 +101,7 @@ function storage_restore_dump() {
 	wait_for $COUCHHOST 5984 "couch" &&
 	couchdb-dump/couchdb-backup.sh -c -r -H $COUCHHOST -d tasks -f "$1" &&
 	wait_for $PGHOST 5432 "pg" &&
-	psql "postgresql://tasks:$PW@$PGHOST/tasks" < "$2" &&
+	(pv "$2" | psql "postgresql://tasks:$PW@$PGHOST/tasks") &&
 	storage_details_print
 }
 
@@ -132,7 +132,7 @@ function storage_populate() {
     envs_obtain &&
     echo '# LOADING POSTGRESQL DUMP' &&
     wait_for $PGHOST 5432 "pg" &&
-    pgconn < schema.sql &&
+    pv schema.sql | pgconn &&
     echo '# PUSHING VIEWS INTO COUCHDB' &&
     wait_for $COUCHHOST 5984 "couch" &&
     docker run -u $IDU -ti --link redis --link couch --link pg -v $PWD":/home/tasks" --entrypoint=/home/tasks/docker/py/write_config.sh tasks/py &&

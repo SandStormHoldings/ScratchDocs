@@ -286,7 +286,7 @@ def get_latest(tags='email',newer_than=None,limit=300):
     trets.sort(lambda x,y: cmp(x[0],y[0]),reverse=True)
     return trets
     
-def get_fns(assignee=None,created=None,handled_by=None,informed=None,status=None,tag=None,recurse=True,query=None,newer_than=None,tids=None,recent=False):
+def get_fns(C,assignee=None,created=None,handled_by=None,informed=None,status=None,tag=None,recurse=True,query=None,newer_than=None,tids=None,recent=False):
     """return task filenames according to provided criteria"""
     #raise Exception(assignee,created,informed)
     trets=[]
@@ -333,8 +333,17 @@ def get_fns(assignee=None,created=None,handled_by=None,informed=None,status=None
     else:
         print trets
         raise NotImplementedError('need intersection between all results here')
-        
-    return its
+    priqry = "select id,tot_pri from tasks_pri where id in %s"
+    its = dict([(t._id,t) for t in its])
+    ids = tuple(its.keys())
+    C.execute(priqry,(ids,))
+    pris = C.fetchall()
+    for pri in pris:
+        its[pri['id']].pri = pri['tot_pri']
+    for k,v in its.items():
+        if not hasattr(v,'pri'):
+            its[k].pri = 0
+    return its.values()
 
 def get_parent(tid,tl=False):
     spl = tid.split('/')
@@ -643,8 +652,8 @@ def get_current_iteration(iterations):
     assert current_iteration,"no current iteration"
     return current_iteration
 
-def makeindex():
-    recent = [(tf,parse_fn(tf,read=True,gethours=True)) for tf in get_fns(recent=True)]
+def makeindex(C):
+    recent = [(tf,parse_fn(tf,read=True,gethours=True)) for tf in get_fns(C,recent=True)]
     recent.sort(hours_srt,reverse=True)
         
     assignees={}
@@ -652,14 +661,14 @@ def makeindex():
     if not os.path.exists(cfg.SDIR): os.mkdir(cfg.SDIR)
 
     #and render its index in the shortcuts folder
-    idxstories = [(fn,parse_fn(fn,read=True,gethours=True)) for fn in get_fns(recurse=True)]
+    idxstories = [(fn,parse_fn(fn,read=True,gethours=True)) for fn in get_fns(C,recurse=True)]
     vardict = {'term':'Index','value':'','stories':by_status(idxstories),'relpath':True,'statuses':cfg.STATUSES,'statusagg':{}}
     routfile= os.path.join(cfg.SDIR,'index.org')
     #print 'rendering %s'%routfile
     render('tasks',vardict,routfile)
 
     #print 'walking iteration %s'%it[0]
-    taskfiles = get_fns(recurse=True)
+    taskfiles = get_fns(C,recurse=True)
     stories = [(fn,parse_fn(fn,read=True,gethours=True)) for fn in taskfiles]
     stories_by_id = dict([(st[1]['id'],st[1]) for st in stories])
     stories.sort(taskid_srt,reverse=True)        
@@ -749,7 +758,7 @@ def makeindex():
             
             assigned_files[assignee][asfn]=afn
 
-            tf = get_fns(assignee=assignee,recurse=True)
+            tf = get_fns(C,assignee=assignee,recurse=True)
             stories = [(fn,parse_fn(fn,read=True,gethours=True,hoursonlyfor=assignee)) for fn in tf]
             stories.sort(status_srt)
             vardict = {'term':'Assignee','value':'%s (%s)'%(assignee,storycnt),'stories':by_status(stories),'relpath':False,'statuses':cfg.STATUSES,'statusagg':{}}
@@ -769,8 +778,8 @@ def makeindex():
     cfn = os.path.join(cfg.DATADIR,'changes.org')
     render('changes',{'GITWEB_URL':cfg.GITWEB_URL,'DOCS_REPONAME':cfg.DOCS_REPONAME,'pfn':parse_fn},cfn)
 
-def list_stories(iteration=None,assignee=None,status=None,tag=None,recent=False):
-    files = get_fns(assignee=assignee,status=status,tag=tag,recent=recent)
+def list_stories(C,iteration=None,assignee=None,status=None,tag=None,recent=False):
+    files = get_fns(C,assignee=assignee,status=status,tag=tag,recent=recent)
     pt = PrettyTable(['id','summary','assigned to','status','tags'])
     pt.align['summary']='l'
     cnt=0
@@ -978,7 +987,7 @@ def tasks_validate(tasks=None,catch=True,amend=False,checkhours=True,checkrepona
     if tasks:
         tfs = [get_task(taskid)['path'] for taskid in tasks]
     else:
-        tfs = get_fns()
+        tfs = get_fns(C)
     for tf in tfs:
         try:
             t = parse_fn(tf)
@@ -1139,7 +1148,7 @@ def rewrite(P,C,tid,o_params={},safe=True,user=None,fetch_stamp=None):
 
 def make_demo(iteration,tree=False,orgmode=False):     
     from tree import Tree
-    tf = [parse_fn(tf) for tf in get_fns(iteration=iteration,recurse=True)]
+    tf = [parse_fn(tf) for tf in get_fns(C,iteration=iteration,recurse=True)]
     def tf_srt(s1,s2):
         rt=cmp(len(s1['id'].split(cfg.STORY_SEPARATOR)),len(s2['id'].split(cfg.STORY_SEPARATOR)))
         if rt!=0: return rt
@@ -1179,13 +1188,13 @@ def make_demo(iteration,tree=False,orgmode=False):
     else:
         render('demo',{'trs':tr,'iteration':iteration,'rurl':cfg.RENDER_URL},'demo-%s.org'%iteration)
     
-def index_assigned(tid=None,dirname='assigned',idxfield='assigned to'):
+def index_assigned(C,tid=None,dirname='assigned',idxfield='assigned to'):
     asgndir = os.path.join(cfg.DATADIR,dirname)
     if tid:
         st,op = gso('find %s -type l -iname %s -exec rm {} \;'%(asgndir,tid.replace('/','.'))) ; assert st==0
         tfs = [get_task(tid)['path']]
     else:
-        tfs = get_fns()
+        tfs = get_fns(C)
         st,op = gso('rm -rf %s/*'%(asgndir)) ; assert st==0
 
     assert os.path.exists(asgndir),"%s does not exist"%asgndir
@@ -1326,7 +1335,7 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     if args.command=='list':
-        list_stories(assignee=args.assignee,status=args.status,tag=args.tag,recent=args.recent)
+        list_stories(C,assignee=args.assignee,status=args.status,tag=args.tag,recent=args.recent)
     if args.command=='reindex':
         index_tasks(reindex_attr=args.reindex_attr)
     if args.command=='index':
@@ -1393,7 +1402,7 @@ if __name__=='__main__':
     if args.command=='rewrite':
         atasks = [at for at in args.tasks if at]
         if not len(atasks):
-            tasks = [parse_fn(tf)['id'] for tf in get_fns()]
+            tasks = [parse_fn(tf)['id'] for tf in get_fns(C)]
         else:
             tasks = atasks
         for tid in tasks:
@@ -1404,7 +1413,7 @@ if __name__=='__main__':
         else:from_date = (datetime.datetime.now()-datetime.timedelta(days=1)).date()
         if args.to_date:to_date = datetime.datetime.strptime(args.to_date,'%Y-%m-%d').date()
         else:to_date = (datetime.datetime.now()-datetime.timedelta(days=1)).date()
-        files = get_fns()
+        files = get_fns(C)
         metafiles = [os.path.join(os.path.dirname(fn),'hours.json') for fn in files]
         agg={} ; tagg={} ; sagg={} ; pagg={} ; tcache={}
 

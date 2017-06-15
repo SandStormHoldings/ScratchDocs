@@ -61,10 +61,11 @@ def srt(t1,t2):
     t1ids = [int(tp) for tp in (t1._id.split('/'))]
     t2ids = [int(tp) for tp in (t2._id.split('/'))]
 
-    t1ids.insert(0,int('priority' in t1['tags']))
-    t2ids.insert(0,int('priority' in t2['tags']))
+    t1ids.insert(0,t1['pri'])
+    t2ids.insert(0,t2['pri'])
     t1idsc = copy.copy(t1ids)
     t2idsc = copy.copy(t2ids)
+    print('cmp:',t1ids,t2ids)
     while True and len(t1ids) and len(t2ids):
         t1id = t1ids.pop(0)
         t2id = t2ids.pop(0)
@@ -80,6 +81,7 @@ sortmodes={'default':srt,
            'summary':lambda x,y: cmp(x['summary'].lower(),y['summary'].lower()),
            'status':lambda x,y: cmp(x['status'],y['status']),
            'parents':lambda x,y: cmp(x['id'],y['id']),
+           'pri':lambda x,y: cmp(x['pri'],y['pri']),
 }
 
 @ajax_response
@@ -133,7 +135,7 @@ def asgn(request,
          tids=None,
          recent=False,
          gethours=False):
-    in_tasks = get_fns(assignee=person,created=created,handled_by=handled_by,informed=informed,recurse=recurse,query=query,tag=tag,newer_than=newer_than,tids=tids,recent=recent)
+    in_tasks = get_fns(C,assignee=person,created=created,handled_by=handled_by,informed=informed,recurse=recurse,query=query,tag=tag,newer_than=newer_than,tids=tids,recent=recent)
     tasks={}
     #print 'got initial ',len(in_tasks),' tasks; cycling'
     for t in in_tasks:

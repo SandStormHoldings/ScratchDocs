@@ -145,6 +145,7 @@ ${float(v and v or 0)-float(total_hours)}\
     <th>tags</th>
     <th><a href='?sortby=summary'>summary</a></th>
     <th><a href='?sortby=parents'>parents</a></th>
+    <th><a href='?sortby=pri'>pri</a></th>
   </tr>
 </thead>
 <tbody>
@@ -195,7 +196,7 @@ ${self.icons(t['tags'])}\
 ## % endif
 &nbsp;
 </td>
-
+<td>${t.pri}</td>
 </tr>
 <% cnt['cnt']+=1 %>
 % endfor
