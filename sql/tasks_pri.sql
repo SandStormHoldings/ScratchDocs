@@ -17,7 +17,8 @@ select
        id,
        json_array_elements_text(contents->'tags') tag
 from tasks t
-
+union
+select id,null from tasks
 ) t on g.name=t.tag
 left outer join (
 select
