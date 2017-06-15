@@ -326,7 +326,7 @@ def prioritization(request,P,C):
                 for ds in cfg.DONESTATES: vset.remove(ds)
             elif fn=='ages':
                 vset.remove('ancient')
-                vset.remove('old')
+                #vset.remove('old')
         else:
             vset = ['-'.join(k.split('-')[1:]) for k in request.params if k.startswith(fn+'-')]
 

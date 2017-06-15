@@ -317,8 +317,10 @@ CREATE VIEW tasks_pri AS
     td.crat,
     td.st,
     td.asgn,
-    td.hby
-   FROM ((tags g
+    td.hby,
+    tr.tracked,
+    tc.ladds
+   FROM ((((tags g
      RIGHT JOIN LATERAL ( SELECT t_1.id,
             json_array_elements_text((t_1.contents -> 'tags'::text)) AS tag
            FROM tasks t_1) t ON (((g.name)::text = t.tag)))
@@ -329,7 +331,17 @@ CREATE VIEW tasks_pri AS
             (tasks.contents ->> 'assignee'::text) AS asgn,
             (tasks.contents ->> 'handled_by'::text) AS hby
            FROM tasks) td ON (((td.id)::text = (t.id)::text)))
-  GROUP BY t.id, td.id, td.summary, td.crat, td.st, td.asgn, td.hby
+     LEFT JOIN ( SELECT tracking_by_tid.tid,
+            sum(tracking_by_tid.tracked) AS tracked
+           FROM tracking_by_tid
+          WHERE ((tracking_by_tid.first_on >= (now() - '3 days'::interval)) OR (tracking_by_tid.last_on >= (now() - '3 days'::interval)))
+          GROUP BY tracking_by_tid.tid) tr ON (((tr.tid)::text = (t.id)::text)))
+     LEFT JOIN ( SELECT commits_by_tid.tid,
+            sum(commits_by_tid.ladds) AS ladds
+           FROM commits_by_tid
+          WHERE ((commits_by_tid.first_on >= (now() - '3 days'::interval)) OR (commits_by_tid.last_on >= (now() - '3 days'::interval)))
+          GROUP BY commits_by_tid.tid) tc ON ((tc.tid = (t.id)::text)))
+  GROUP BY t.id, td.id, td.summary, td.crat, td.st, td.asgn, td.hby, tr.tracked, tc.ladds
   ORDER BY
         CASE
             WHEN (sum(g.pri) IS NULL) THEN (0)::bigint
@@ -519,10 +531,12 @@ SET search_path = public, pg_catalog;
 --
 
 COPY tags (name, pri) FROM stdin;
-bug	20
-priority	10
-critical	25
-PRI_HIGH	10
+PRI_HIGH	50
+bug	0
+PRI_LOW	10
+critical	30
+PRI_MED	30
+priority	50
 \.
 
 

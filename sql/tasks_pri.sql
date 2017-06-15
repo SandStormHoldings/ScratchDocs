@@ -7,7 +7,9 @@ select
 		ELSE 'ancient'
 	END) age,
 	(CASE WHEN sum(g.pri) is null THEN 0 ELSE sum(g.pri) END) tot_pri,
-	td.*
+	td.*,
+	tr.tracked,
+	tc.ladds
 from tags g
 
 right outer join lateral (
@@ -25,10 +27,24 @@ select
        contents->>'status' st,
        contents->>'assignee' asgn,
        contents->>'handled_by' hby
-       from tasks 
+from tasks 
 ) td on td.id=t.id
+left outer join (
+     select tid,
+     	    sum(tracked) tracked
+     from tracking_by_tid
+     where first_on>=now()-interval '3 day' or last_on>=now()-interval '3 day'
+     group by tid
+     ) tr on tr.tid=t.id
+left outer join (
+     select tid,
+     	    sum(ladds) ladds
+     from commits_by_tid
+     where first_on>=now()-interval '3 day' or last_on>=now()-interval '3 day'
+     group by tid
+     ) tc on tc.tid=t.id
 
-group by t.id,td.id,td.summary,td.crat,td.st,td.asgn,td.hby
+group by t.id,td.id,td.summary,td.crat,td.st,td.asgn,td.hby,tr.tracked,tc.ladds
 order by tot_pri desc
 
 
