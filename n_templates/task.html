@@ -47,19 +47,6 @@ ${"%s remaining"%remaining_hours}\
         <input class="btn btn-default custom-link" type='button' accesskey='s' value='Subtask' data-link="${upr}/s/new/${task._id}" accesskey='n' />    
         <span class="divider-vertical"></span>
         <input class="btn btn-default custom-link" type='button' value='History' data-link="${upr}/${task._id}/log" />
-	% if hasperm('gantt'):
-	<div class='gantt'>
-	  
-	     % for k in sorted(gantt.keys()):
-	     <% v= gantt[k] %>
-	     % if k=='s':
-	     ${gantt_labels[k]}: <input type='checkbox' class='show_in_gantt' id='show_in_gantt_${task._id}' ${v and ' checked=1' or ''} /><br />
-	     % else:
-	     ${gantt_labels[k]}: ${v}<br />
-	     % endif
-	     % endfor
-	</div>
-	% endif
     %else:
         <input class="btn btn-default custom-link" type='submit' value='Summary' data-link="${upr}/${task._id}" />
     %endif
@@ -128,7 +115,7 @@ ${taskmenu()}
                             <a href="${upr}/tag/${tag}">${tag}</a> ;
                         </label>
                         % endfor
-                        <input type='text' name='tag-new' value="" id="inp-add-tag" placeholder="add tag(s)"/>
+                        <input type='text' name='tag-new' value="" id="inp-add-tag" placeholder="add tag(s)"/> <span title="priority indicator">${pri}</span>
                     </div>
                 </div>
 
@@ -359,7 +346,22 @@ for tgt,branches in branches_by_target.items():
                                 </div>
                             </div>
                         % endfor
-                    % endfor
+		% endfor
+
+			    % if hasperm('gantt'):
+			    <h4>Gantt attrs</h4>
+			    <div class='gantt'>
+			      % for k in sorted(gantt.keys()):
+			      <% v= gantt[k] %>
+			      % if k=='s':
+			      ${gantt_labels[k]}: <input type='checkbox' class='show_in_gantt' id='show_in_gantt_${task._id}' ${v and ' checked=1' or ''} /><br />
+			      % else:
+			      ${gantt_labels[k]}: ${v}<br />
+			      % endif
+			      % endfor
+			    </div>
+		% endif
+			    
                 </div>
             % endif
         </div>

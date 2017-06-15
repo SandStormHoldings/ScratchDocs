@@ -1,5 +1,5 @@
 create or replace view tracking_by_tid as
-select tid,
+select regexp_replace(tid,'^/','') tid,
        sum(tracked) tracked,
        min(first_on) first_on,
        max(last_on) last_on
