@@ -544,3 +544,34 @@ priority	50
 -- PostgreSQL database dump complete
 --
 
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 9.6.1
+-- Dumped by pg_dump version 9.6.1
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SET check_function_bodies = false;
+SET client_min_messages = warning;
+SET row_security = off;
+
+SET search_path = public, pg_catalog;
+
+--
+-- Data for Name: participants; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY participants (username, name, email, active, skype, informed, perms) FROM stdin;
+default_user	\N	\N	t	\N	\N	\N
+\.
+
+
+--
+-- PostgreSQL database dump complete
+--
+

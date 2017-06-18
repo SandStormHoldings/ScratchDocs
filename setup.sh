@@ -124,6 +124,7 @@ function storage_details_print() {
 function schema_save() {
     docker exec -t pg pg_dump -U postgres -N pg_catalog -x --no-owner --schema-only tasks | grep -v 'plpgsql' > $DIR"/schema.sql" && \
 	docker exec -t pg pg_dump -U postgres -N pg_catalog -x --no-owner --data-only tasks --table tags >> schema.sql && \
+	docker exec -t pg pg_dump -U postgres -N pg_catalog -x --no-owner --data-only tasks --table participants >> schema.sql && \	
 	dos2unix $DIR"/schema.sql"
     
 }

@@ -329,17 +329,18 @@ def get_fns(C,assignee=None,created=None,handled_by=None,informed=None,status=No
 )
 
     if len(trets)==1:
-        its = trets[0]
-    else:
+        its = dict([(t._id,t) for t in trets[0]])
+    elif len(its):
         print trets
         raise NotImplementedError('need intersection between all results here')
-    priqry = "select id,tot_pri from tasks_pri where id in %s"
-    its = dict([(t._id,t) for t in its])
-    ids = tuple(its.keys())
-    C.execute(priqry,(ids,))
-    pris = C.fetchall()
-    for pri in pris:
-        its[pri['id']].pri = pri['tot_pri']
+    ids = tuple(its.keys())    
+    if len(ids):
+        priqry = "select id,tot_pri from tasks_pri where id in %s"
+        C.execute(priqry,(ids,))
+        pris = C.fetchall()
+        for pri in pris:
+            its[pri['id']].pri = pri['tot_pri']
+            
     for k,v in its.items():
         if not hasattr(v,'pri'):
             its[k].pri = 0
