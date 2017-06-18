@@ -1095,12 +1095,50 @@ def get_karma_receivers():
 def get_karma(date,user):
     return [k for k in Task.view('task/karma',key=[date,user])]
 
+def deps_validate(C,tsaves,tid,deps):
+    from couchdbkit.exceptions import ResourceNotFound    
+    print('deps_validate',tid,deps)
+    t = tsaves[tid]
+
+    # avoid adding task itself as its own dependency
+    avoid=[tid]
+
+    # avoid circular dependencies
+    C.execute("select tid from tasks_deps_hierarchy where depid=%s",(tid,))
+    depids = [d['tid'] for d in C.fetchall()]
+    avoid+=depids
+
+    # make sure they indeed are valid tasks
+    for d in deps:
+        try:
+            Task.get(d)
+        except ResourceNotFound:
+            avoid.append(d)
+
+    # clean the disallowed deps    
+    for av in avoid:
+        if str(av) in deps:
+            deps.remove(av)
+            t.dependencies.remove(av)
+
+
+    # unique the remainging list
+    t.dependencies = list(set(t.dependencies))
+    deps = list(set(deps))    
+
+    #print(tid,'just retained deps',t.dependencies)
+    return deps
+
 def rewrite(P,C,tid,o_params={},safe=True,user=None,fetch_stamp=None):
+    tsaves={} #this dict contains all couchdb task objects we're working with
+    tsaves[tid] = get_task(tid)
     assert tid
     #print 'working %s'%tid
-    tsaves={} #this dict contains all couchdb task objects we're working with
-    t = tsaves[tid] = get_task(tid)
     clinks = list(set(o_params['cross_links']))
+    deps = list(set(o_params['dependencies']))
+    t = tsaves[tid]
+
+    
     e = [ce.split("-") for ce in o_params['cross_links_raw'].split(",") if ce!='']
 
     #remove previous cross links
@@ -1123,6 +1161,7 @@ def rewrite(P,C,tid,o_params={},safe=True,user=None,fetch_stamp=None):
 #              'creator':t['creator'], # DO NOT TOUCH CREATOR!
               'tags':t['tags'],
               'assignee':t['assignee'],
+              'dependencies':'dependencies' in t and list(t.dependencies) or [],
               #'points':t.get('points','?'),
               'informed':hasattr(t,'informed') and t.informed or [],
               'links':t.links,
@@ -1139,12 +1178,16 @@ def rewrite(P,C,tid,o_params={},safe=True,user=None,fetch_stamp=None):
         params[k]=v
     for k,v in params.items():
         if 'cross_links' in k: continue
-        if k not in ['informed','external_id','external_thread_id','external_msg_id','karma','orig_subj','handled_by']:
+        if k not in ['informed','external_id','external_thread_id','external_msg_id','karma','orig_subj','handled_by','dependencies']:
             assert hasattr(t,k),"task does not have %s"%k
-        #print t,k,v
+        if k=='dependencies': v=list(v)
+        #print('setattr(',t,k,v,')',type(v))
         setattr(t,k,v)
+    deps = deps_validate(C,tsaves,tid,deps)
+    #print('deps of tsaves',tid,'is ',tsaves[tid].dependencies)
+        
     for tk,ts in tsaves.items():
-        #print ts,'save(user=%s)'%user
+        print ts,'save(user=%s)'%user
         ts.save(P,C,user=user,fetch_stamp=tk==tid and fetch_stamp or None)
 
 def make_demo(iteration,tree=False,orgmode=False):     

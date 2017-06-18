@@ -297,6 +297,42 @@ CREATE VIEW task_hierarchy AS
 
 
 --
+-- Name: tasks_deps; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW tasks_deps AS
+ SELECT tasks.id AS tid,
+    json_array_elements_text((tasks.contents -> 'dependencies'::text)) AS depid
+   FROM tasks;
+
+
+--
+-- Name: tasks_deps_hierarchy; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW tasks_deps_hierarchy AS
+ WITH RECURSIVE rel_tree AS (
+         SELECT tasks_deps.tid,
+            tasks_deps.depid,
+            1 AS level,
+            ARRAY[tasks_deps.tid] AS path_info
+           FROM tasks_deps
+        UNION ALL
+         SELECT c.tid,
+            p.depid,
+            (p.level + 1),
+            (p.path_info || c.tid)
+           FROM (tasks_deps c
+             JOIN rel_tree p ON ((c.depid = (p.tid)::text)))
+        )
+ SELECT rel_tree.tid,
+    rel_tree.depid,
+    rel_tree.level,
+    rel_tree.path_info
+   FROM rel_tree;
+
+
+--
 -- Name: tasks_pri; Type: VIEW; Schema: public; Owner: -
 --
 

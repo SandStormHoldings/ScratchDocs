@@ -15,7 +15,7 @@ from docs import initvars
 from pg import get_repos,get_usernames,hasperm,hasperm_db,get_participants,get_all_journals,get_children,get_journals
 import config as cfg
 initvars(cfg)
-from docs import cre,date_formats,parse_attrs,get_fns,get_parent_descriptions,get_task,rewrite,get_new_idx,add_task,get_parent,flush_taskfiles_cache,tasks_validate, get_karma, get_karma_receivers
+from docs import cre,date_formats,parse_attrs,get_fns,get_parent_descriptions,get_task,rewrite,get_new_idx,add_task,get_parent,flush_taskfiles_cache,tasks_validate, get_karma, get_karma_receivers, deps_validate
 from docs import loadmeta,org_render,parsegitdate,read_current_metastates,read_journal,render_journal_content,append_journal_entry,get_tags,Task,get_latest,metastates_agg,metastates_qry,P, gantt_info,gantt_info_row
 from couchdb import get_cross_links
 import codecs
@@ -409,7 +409,7 @@ def task(request,P,C,task):
     tags=[] ; links=[] ; informed=[] ; branches=[] ;
     cross_links_raw = get_cross_links(task)
     cross_links=[]
-
+    dependencies=[]
     for k,v in request.params.items():
         if k.startswith('tag-'):
             tn = k.replace('tag-','')
@@ -435,9 +435,13 @@ def task(request,P,C,task):
         if k.startswith('cross_link-'):
             cln = k.replace('cross_link-','')
             cross_links.append(cln)
+        if k.startswith('dependency-'):
+            dln = k.replace('dependency-','')
+            dependencies.append(dln)
     lna = request.params.get('link-new-anchor')
     lnu = request.params.get('link-new-url')
     ncl = request.params.get('add-cross_link')
+    ndl = request.params.get('add-dependency')
 
     if task and task!='new':
         karma = getattr(get_task(task),'karma',{})
@@ -460,6 +464,10 @@ def task(request,P,C,task):
     if ncl:
         for ncli in ncl.split(','):
             cross_links.append(ncli)
+    if ndl:
+        for ndli in ndl.split(','):
+            dependencies.append(ndli)
+
     if lna and lnu:
         links.append({'anchor':lna,'url':lnu})
 
@@ -493,6 +501,7 @@ def task(request,P,C,task):
                     'links':links,
                     'cross_links_raw':request.params.get('cross_links'),
                     'cross_links':cross_links,
+                    'dependencies':dependencies,
                     'informed':informed,
                     'branches':branches}
         print o_params
@@ -574,6 +583,7 @@ def task(request,P,C,task):
         remaining_hours=zerodelta
     #journal
     jitems = t.journal
+    dependencies = 'dependencies' in t and t.dependencies or []
     branchtargets=[(re.compile("pre"),"preproduction"),
                    (re.compile("prod"),"production"),
                    (re.compile(".*"),"staging")]
@@ -592,6 +602,11 @@ def task(request,P,C,task):
     if len(pri): pri = pri[0]['tot_pri']
     else: pri=0
 
+    C.execute("select depid,path_info from tasks_deps_hierarchy where tid=%s",(t._id,))
+    fulldeps = [d for d in C.fetchall() if d['depid'] not in dependencies]
+    C.execute("select tid from tasks_deps_hierarchy where depid=%s",(t._id,))
+    dependants = [d['tid'] for d in C.fetchall()]
+
     return basevars(request,P,C,{'task':t,
                                  'changed_at':changed_at,
                                  'pri':pri,
@@ -601,6 +616,9 @@ def task(request,P,C,task):
                                  'branches_by_target':btgts,
                                  'get_task':get_task,
                                  'cross_links':cross_links_raw,
+                                 'dependencies':dependencies,
+                                 'fulldeps':fulldeps,
+                                 'dependants':dependants,
                                  'remaining_hours':remaining_hours,
                                  'total_hours':0,
                                  'j':{'%s existing entries'%t._id:jitems},

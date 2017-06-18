@@ -180,6 +180,43 @@ ${taskmenu()}
                     </div>
                 </div>
 
+		<div class="control-group">
+                    <label class="control-label">Dependencies</label>
+                    <div class="controls">
+                      add: <input type='text' name="add-dependency" /><br />
+                      <input type="hidden" name="dependencies" value="${",".join(["-".join(i) for i in dependencies])}" />
+		      % for cl in dependencies:
+		       <input type='checkbox' name='dependency-${cl}' checked=1 value=1 /> <a href="${upr}/${cl}">${cl}</a> : ${get_task(cl).summary}<br />
+		      % endfor
+                    </div>
+                </div>
+
+		% if len(fulldeps):
+		<div class="control-group">
+                    <label class="control-label">Extended dependencies</label>
+                    <div class="controls">
+		      <ul>
+		      % for cl in fulldeps:
+		      <li><a href="${upr}/${cl['depid']}">${cl['depid']}</a>: ${get_task(cl['depid']).summary} (${" <- ".join(cl['path_info'])})</li>
+		      % endfor
+		      </ul>
+                    </div>
+                </div>
+		% endif
+
+		% if len(dependants):
+		<div class="control-group">
+                    <label class="control-label">Dependants</label>
+                    <div class="controls">
+		      <ul>
+		      % for cl in dependants:
+		      <li><a href="${upr}/${cl}">${cl}</a>: ${get_task(cl).summary}</li>
+		      % endfor
+		      </ul>
+                    </div>
+                </div>
+		% endif
+		
                 <div class="control-group">
                     <label class="control-label">Creator</label>
                     <div class="controls" style="line-height: 30px;">
