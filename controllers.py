@@ -604,8 +604,8 @@ def task(request,P,C,task):
 
     C.execute("select depid,path_info from tasks_deps_hierarchy where tid=%s",(t._id,))
     fulldeps = [d for d in C.fetchall() if d['depid'] not in dependencies]
-    C.execute("select tid from tasks_deps_hierarchy where depid=%s",(t._id,))
-    dependants = [d['tid'] for d in C.fetchall()]
+    C.execute("select tid,path_info from tasks_deps_hierarchy where depid=%s",(t._id,))
+    dependants = [d for d in C.fetchall()]
 
     return basevars(request,P,C,{'task':t,
                                  'changed_at':changed_at,

@@ -210,7 +210,7 @@ ${taskmenu()}
                     <div class="controls">
 		      <ul>
 		      % for cl in dependants:
-		      <li><a href="${upr}/${cl}">${cl}</a>: ${get_task(cl).summary}</li>
+		      <li><a href="${upr}/${cl['tid']}">${cl['tid']}</a>: ${get_task(cl['tid']).summary} (${" <- ".join(cl['path_info'][:-1])})</li>
 		      % endfor
 		      </ul>
                     </div>

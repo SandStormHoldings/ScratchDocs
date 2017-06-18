@@ -1,4 +1,5 @@
 create or replace view tasks_pri as
+-- classification and selcet
 select
 	(CASE
 		WHEN crat>=now()-interval '1 day' THEN 'new'
@@ -10,8 +11,9 @@ select
 	td.*,
 	tr.tracked,
 	tc.ladds
+-- tag/priority definitions
 from tags g
-
+-- tasks tagging info
 right outer join lateral (
 select
        id,
@@ -20,6 +22,7 @@ from tasks t
 union
 select id,null from tasks
 ) t on g.name=t.tag
+-- tasks general info
 left outer join (
 select
 	id,
@@ -30,6 +33,7 @@ select
        contents->>'handled_by' hby
 from tasks 
 ) td on td.id=t.id
+-- time tracking data
 left outer join (
      select tid,
      	    sum(tracked) tracked
@@ -37,6 +41,7 @@ left outer join (
      where first_on>=now()-interval '3 day' or last_on>=now()-interval '3 day'
      group by tid
      ) tr on tr.tid=t.id
+-- commits data
 left outer join (
      select tid,
      	    sum(ladds) ladds
