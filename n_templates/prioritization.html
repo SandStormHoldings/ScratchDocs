@@ -33,7 +33,7 @@
       % for l in lst:
       <td class="${l['tracked'] and 'tracked' or 'untracked'} ${l['ladds'] and 'commits' or 'nocommits'}">
 	<a title="${l['summary'].decode('utf-8')}" href="${upr}/${l['id']}" target='_blank'>${l['id']}</a>
-	<span title="priority">(${l['tot_pri']})</span>
+	<span title="priority">(${l['comb_pri']})</span>
 	<span class="${l['st'] in doingstates and 'doing blue' or (l['st'] in donestates and 'done strikethrough' or 'notdoing')}">${l['st']}</span>, \
 	<span class="${l['crat']<recent and 'old' or 'recent bold'}">${humanize.naturaltime(l['crat'])}</span>\
 	% if l['hby']:

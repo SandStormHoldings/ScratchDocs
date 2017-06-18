@@ -335,11 +335,11 @@ def get_fns(C,assignee=None,created=None,handled_by=None,informed=None,status=No
         raise NotImplementedError('need intersection between all results here')
     ids = tuple(its.keys())    
     if len(ids):
-        priqry = "select id,tot_pri from tasks_pri where id in %s"
+        priqry = "select id,comb_pri from tasks_pri_comb where id in %s"
         C.execute(priqry,(ids,))
         pris = C.fetchall()
         for pri in pris:
-            its[pri['id']].pri = pri['tot_pri']
+            its[pri['id']].pri = pri['comb_pri']
             
     for k,v in its.items():
         if not hasattr(v,'pri'):

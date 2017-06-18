@@ -37,7 +37,7 @@ SET default_with_oids = false;
 CREATE TABLE tasks (
     id character varying NOT NULL,
     parent_id character varying,
-    contents json,
+    contents jsonb,
     show_in_gantt boolean DEFAULT true,
     changed_at timestamp without time zone,
     changed_by character varying(32)
@@ -130,7 +130,7 @@ CREATE TABLE upw_tracking (
 --
 
 CREATE VIEW tracking_by_tid AS
- SELECT foo.tid,
+ SELECT regexp_replace((foo.tid)::text, '^/'::text, ''::text) AS tid,
     sum(foo.tracked) AS tracked,
     min(foo.first_on) AS first_on,
     max(foo.last_on) AS last_on
@@ -192,7 +192,7 @@ CREATE VIEW gantt AS
    FROM (((tasks ta
      JOIN work_estimate_by_tid we ON (((ta.id)::text = (we.tid)::text)))
      LEFT JOIN commits_by_tid c ON ((c.tid = (we.tid)::text)))
-     LEFT JOIN tracking_by_tid t ON (((t.tid)::text = (we.tid)::text)))
+     LEFT JOIN tracking_by_tid t ON ((t.tid = (we.tid)::text)))
   WHERE (ta.show_in_gantt <> false);
 
 
@@ -217,9 +217,13 @@ CREATE VIEW journal_entries AS
     ((jes.je ->> 'created_at'::text))::timestamp without time zone AS created_at,
     (jes.je ->> 'creator'::text) AS creator,
     (jes.je ->> 'content'::text) AS cnt,
-    (jes.je -> 'attrs'::text) AS attrs
+    (jes.je -> 'attrs'::text) AS attrs,
+    jes.assignee,
+    jes.status
    FROM ( SELECT tasks.id AS tid,
-            json_array_elements((tasks.contents -> 'journal'::text)) AS je
+            jsonb_array_elements((tasks.contents -> 'journal'::text)) AS je,
+            (tasks.contents ->> 'assignee'::text) AS assignee,
+            (tasks.contents ->> 'status'::text) AS status
            FROM tasks) jes;
 
 
@@ -302,7 +306,7 @@ CREATE VIEW task_hierarchy AS
 
 CREATE VIEW tasks_deps AS
  SELECT tasks.id AS tid,
-    json_array_elements_text((tasks.contents -> 'dependencies'::text)) AS depid
+    jsonb_array_elements_text((tasks.contents -> 'dependencies'::text)) AS depid
    FROM tasks;
 
 
@@ -344,10 +348,7 @@ CREATE VIEW tasks_pri AS
             WHEN (td.crat >= (now() - '1 year'::interval)) THEN 'old'::text
             ELSE 'ancient'::text
         END AS age,
-        CASE
-            WHEN (sum(g.pri) IS NULL) THEN (0)::bigint
-            ELSE sum(g.pri)
-        END AS tot_pri,
+    sum(COALESCE(g.pri, 0)) AS tot_pri,
     td.id,
     td.summary,
     td.crat,
@@ -355,11 +356,16 @@ CREATE VIEW tasks_pri AS
     td.asgn,
     td.hby,
     tr.tracked,
-    tc.ladds
+    tc.ladds,
+    count(*) AS cnt
    FROM ((((tags g
      RIGHT JOIN LATERAL ( SELECT t_1.id,
-            json_array_elements_text((t_1.contents -> 'tags'::text)) AS tag
-           FROM tasks t_1) t ON (((g.name)::text = t.tag)))
+            jsonb_array_elements_text((t_1.contents -> 'tags'::text)) AS tag
+           FROM tasks t_1
+        UNION
+         SELECT tasks.id,
+            NULL::text
+           FROM tasks) t ON (((g.name)::text = t.tag)))
      LEFT JOIN ( SELECT tasks.id,
             (tasks.contents ->> 'summary'::text) AS summary,
             ((tasks.contents ->> 'created_at'::text))::timestamp without time zone AS crat,
@@ -371,18 +377,50 @@ CREATE VIEW tasks_pri AS
             sum(tracking_by_tid.tracked) AS tracked
            FROM tracking_by_tid
           WHERE ((tracking_by_tid.first_on >= (now() - '3 days'::interval)) OR (tracking_by_tid.last_on >= (now() - '3 days'::interval)))
-          GROUP BY tracking_by_tid.tid) tr ON (((tr.tid)::text = (t.id)::text)))
+          GROUP BY tracking_by_tid.tid) tr ON ((tr.tid = (t.id)::text)))
      LEFT JOIN ( SELECT commits_by_tid.tid,
             sum(commits_by_tid.ladds) AS ladds
            FROM commits_by_tid
           WHERE ((commits_by_tid.first_on >= (now() - '3 days'::interval)) OR (commits_by_tid.last_on >= (now() - '3 days'::interval)))
           GROUP BY commits_by_tid.tid) tc ON ((tc.tid = (t.id)::text)))
   GROUP BY t.id, td.id, td.summary, td.crat, td.st, td.asgn, td.hby, tr.tracked, tc.ladds
-  ORDER BY
-        CASE
-            WHEN (sum(g.pri) IS NULL) THEN (0)::bigint
-            ELSE sum(g.pri)
-        END DESC;
+  ORDER BY (sum(COALESCE(g.pri, 0))) DESC;
+
+
+--
+-- Name: tasks_pri_accum; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW tasks_pri_accum AS
+ SELECT h.tid,
+    (sum(p.tot_pri) + (sum(h.level))::numeric) AS tot_pri,
+    array_agg(h.depid) AS depids
+   FROM (tasks_deps_hierarchy h
+     LEFT JOIN tasks_pri p ON (((p.id)::text = h.depid)))
+  GROUP BY h.tid;
+
+
+--
+-- Name: tasks_pri_comb; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW tasks_pri_comb AS
+ SELECT p.age,
+    p.tot_pri,
+    p.id,
+    p.summary,
+    p.crat,
+    p.st,
+    p.asgn,
+    p.hby,
+    p.tracked,
+    p.ladds,
+    p.cnt,
+    COALESCE(a.tot_pri, (0)::numeric) AS dep_pri,
+    ((COALESCE(p.tot_pri, (0)::bigint))::numeric + COALESCE(a.tot_pri, (0)::numeric)) AS comb_pri
+   FROM (tasks_pri p
+     LEFT JOIN tasks_pri_accum a ON (((p.id)::text = (a.tid)::text)))
+  ORDER BY ((COALESCE(p.tot_pri, (0)::bigint))::numeric + COALESCE(a.tot_pri, (0)::numeric)) DESC;
 
 
 --
@@ -530,6 +568,41 @@ ALTER TABLE ONLY tracking
 
 ALTER TABLE ONLY upw_tracking
     ADD CONSTRAINT upw_tracking_pkey PRIMARY KEY (company_id, team_id, provider, worked_on, memo);
+
+
+--
+-- Name: assignee_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX assignee_idx ON tasks USING btree (((contents ->> 'assignee'::text)));
+
+
+--
+-- Name: created_at_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX created_at_idx ON tasks USING btree (((contents ->> 'created_at'::text)));
+
+
+--
+-- Name: hby_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hby_idx ON tasks USING btree (((contents ->> 'handled_by'::text)));
+
+
+--
+-- Name: status_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX status_idx ON tasks USING btree (((contents ->> 'status'::text)));
+
+
+--
+-- Name: tags_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX tags_idx ON tasks USING btree (((contents ->> 'tags'::text)));
 
 
 --

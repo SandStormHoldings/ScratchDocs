@@ -65,7 +65,7 @@ def srt(t1,t2):
     t2ids.insert(0,hasattr(t2,'pri') and getattr(t2,'pri') or 0)
     t1idsc = copy.copy(t1ids)
     t2idsc = copy.copy(t2ids)
-    print('cmp:',t1ids,t2ids)
+    #print('cmp:',t1ids,t2ids)
     while True and len(t1ids) and len(t2ids):
         t1id = t1ids.pop(0)
         t2id = t2ids.pop(0)
@@ -332,7 +332,7 @@ def prioritization(request,P,C):
 
         rt['values'][fn]={'avail':locals()[fn],
                           'set':vset}
-    qry ="select * from tasks_pri where 1=1"
+    qry ="select * from tasks_pri_comb where 1=1"
     params=[]
     for fn in fields:
         vset1 = rt['values'][fn]['set']
@@ -352,7 +352,7 @@ def prioritization(request,P,C):
             params.append(vset)
         elif vset:
             raise Exception(fn,vset)
-    qry+=" order by tot_pri desc,crat desc "
+    qry+=" order by comb_pri desc,crat desc "
     #print('executing:',qry,params)
     C.execute(qry,params)
     orders={}
@@ -597,10 +597,15 @@ def task(request,P,C,task):
                 btgts[tgt].append(br)
                 break
 
-    C.execute("select * from tasks_pri where id=%s",(task,))
+    C.execute("select * from tasks_pri_comb where id=%s",(task,))
     pri = C.fetchall()
-    if len(pri): pri = pri[0]['tot_pri']
-    else: pri=0
+    if len(pri):
+        pr = pri[0]
+        pri = pr['tot_pri']
+        dep_pri = pr['dep_pri']
+    else:
+        pri=0
+        dep_pri=0
 
     C.execute("select depid,path_info from tasks_deps_hierarchy where tid=%s",(t._id,))
     fulldeps = [d for d in C.fetchall() if d['depid'] not in dependencies]
@@ -610,6 +615,7 @@ def task(request,P,C,task):
     return basevars(request,P,C,{'task':t,
                                  'changed_at':changed_at,
                                  'pri':pri,
+                                 'dep_pri':dep_pri,
                                  'gantt':gantt,
                                  'gantt_labels':gantt_labels,
                                  'zerodelta':zerodelta,

@@ -1,5 +1,5 @@
 create or replace view tasks_deps as
-select id tid,json_array_elements_text(contents->'dependencies') depid from tasks;
+select id tid,jsonb_array_elements_text(contents->'dependencies') depid from tasks;
 
 
 create or replace view tasks_deps_hierarchy as

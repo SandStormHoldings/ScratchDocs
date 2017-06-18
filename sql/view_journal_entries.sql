@@ -10,7 +10,7 @@ select tid,
 from
 (select id
 	tid,
-	json_array_elements(contents->'journal') je,
+	jsonb_array_elements(contents->'journal') je,
 	contents->>'assignee' assignee,
 	contents->>'status' status
 from tasks) jes;
