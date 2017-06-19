@@ -323,7 +323,8 @@ def prioritization(request,P,C):
         if setall:
             vset = locals()[fn].keys()
             if fn=='statuses':
-                for ds in cfg.DONESTATES: vset.remove(ds)
+                for ds in cfg.DONESTATES:
+                    if ds in vset: vset.remove(ds)
             elif fn=='ages':
                 vset.remove('ancient')
                 #vset.remove('old')

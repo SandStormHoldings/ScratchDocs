@@ -72,12 +72,12 @@ group by t.id,td.id,td.summary,td.crat,td.st,td.asgn,td.hby,tr.tracked,tc.ladds
 order by tot_pri desc;
 
 create or replace view tasks_pri_accum as
-select h.tid,
+select h.depid tid,
        sum(p.tot_pri)+sum(level) tot_pri,
        array_agg(h.depid) depids
 from tasks_deps_hierarchy h
-left outer join tasks_pri p on (p.id=h.depid)
-group by h.tid;
+left outer join tasks_pri p on (p.id=h.tid)
+group by h.depid;
 
 create or replace view tasks_pri_comb as
 select p.*,
