@@ -23,6 +23,7 @@ select
 	sum(coalesce(g.pri,0)) tot_pri,
 	td.*,
 	tr.tracked,
+	tc.last_on last_commit,
 	tc.ladds,
 	count(*) cnt
 -- 	,array_agg(coalesce(dh.depid)) depids
@@ -54,21 +55,22 @@ from tasks
 -- time tracking data
 left outer join (
      select tid,
-     	    sum(tracked) tracked
+     	    max(last_on) tracked
      from tracking_by_tid
-     where first_on>=now()-interval '3 day' or last_on>=now()-interval '3 day'
+--      where first_on>=now()-interval '3 day' or last_on>=now()-interval '3 day'
      group by tid
      ) tr on tr.tid=t.id
 -- commits data
 left outer join (
      select tid,
+     	    max(last_on) last_on,
      	    sum(ladds) ladds
      from commits_by_tid
-     where first_on>=now()-interval '3 day' or last_on>=now()-interval '3 day'
+--     where first_on>=now()-interval '3 day' or last_on>=now()-interval '3 day'
      group by tid
      ) tc on tc.tid=t.id
 
-group by t.id,td.id,td.summary,td.crat,td.st,td.asgn,td.hby,tr.tracked,tc.ladds
+group by t.id,td.id,td.summary,td.crat,td.st,td.asgn,td.hby,tr.tracked,tc.ladds,tc.last_on
 order by tot_pri desc;
 
 create or replace view tasks_pri_accum as

@@ -31,7 +31,8 @@
     <tr>
       <td><a href="${upr}/assignments/${a}">${a}</a></td>
       % for l in lst:
-      <td class="${l['tracked'] and 'tracked' or 'untracked'} ${l['ladds'] and 'commits' or 'nocommits'}">
+      <td class="${l['tracked'] is None and 'untracked' or (l['tracked']>=fresh and 'tracked-fresh' or 'tracked')} \
+		 ${l['last_commit'] is None and 'nocommits' or (l['last_commit']>=fresh and 'commits-fresh' or 'commits')}">
 	<a title="${l['summary'].decode('utf-8')}" href="${upr}/${l['id']}" target='_blank'>${l['id']}</a>
 	<span title="priority">(${l['comb_pri']})</span>
 	<span class="${l['st'] in doingstates and 'doing blue' or (l['st'] in donestates and 'done strikethrough' or 'notdoing')}">${l['st']}</span>, \

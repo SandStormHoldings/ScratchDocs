@@ -49,11 +49,17 @@ iframe.rndr {
     color:black;
     text-decoration:none;
 }
-.tracked {
+.tracked-fresh {
     background-color:#c0ff33;
 }
-.commits {
+.tracked {
+    background-color:#e5ff99;
+}
+.commits-fresh {
     border:1px solid red;
+}
+.commits {
+    border:1px solid pink;
 }
 .red {
     background-color:red !important;

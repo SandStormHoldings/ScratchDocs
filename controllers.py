@@ -375,6 +375,7 @@ def prioritization(request,P,C):
         s = tp['st']
         if s not in statuses: statuses[s]=0
         statuses[s]+=1
+    rt['fresh'] = datetime.datetime.now().date()-datetime.timedelta(days=3)
     rt['tasks_cnt']=cnt
     rt['handlers']=handlers
     rt['statuses']=statuses
