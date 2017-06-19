@@ -19,7 +19,13 @@
 ${tag[0]}\
 ${self.icons([tag[0]])}\
 </td>
-	<td><input type='number' class='pri' name="pri-${tag[0]}" value="${pri.get(tag[0],0)}" />
+	<td>
+	  % if hasperm('prioritization'):
+	  <input type='number' class='pri' name="pri-${tag[0]}" value="${pri.get(tag[0],0)}" />
+	  % else:
+	  ${pri.get(tag[0],0)}
+	  % endif
+	  </td>
 	<td><a href="${upr}/metastates/tags-${tag[0]}">metastates breakup</a></td>
     </tr>
 % endfor
