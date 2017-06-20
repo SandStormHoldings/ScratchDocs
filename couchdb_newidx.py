@@ -1,3 +1,4 @@
+from __future__ import print_function
 from couchdb import *
 import sys
 
@@ -8,4 +9,4 @@ else:
 s,d = init_conn()
 push_views(d)
 
-print get_new_idx(par)
+print(get_new_idx(par))

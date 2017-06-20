@@ -1,3 +1,5 @@
+from future import standard_library
+standard_library.install_aliases()
 from celery import Celery
 from time import sleep
 import logging
@@ -7,7 +9,7 @@ from docs import initvars
 import config as cfg
 import subprocess
 initvars(cfg)
-from commands import getstatusoutput as gso
+from subprocess import getstatusoutput as gso
 celery = Celery('tasks',broker=cfg.REDIS_BROKER)
 
 @celery.task

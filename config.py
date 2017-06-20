@@ -1,3 +1,4 @@
+AUTO_STOP=True
 DATADIR='data'
 SHORTCUT_PREFIX='s'
 OUTDIR='render'
@@ -66,8 +67,8 @@ METASTATES={
 
     }
 METASTATES_FLAT={}
-for ms,dt in METASTATES.items():
-    for msk,mdt in dt.items():
+for ms,dt in list(METASTATES.items()):
+    for msk,mdt in list(dt.items()):
         METASTATES_FLAT[msk]=mdt
 METASTATES_FLAT['unq_key']='ID(*)'
 
@@ -102,7 +103,6 @@ METASTATES_OVERRIDES={
     'passed':"""(fullstates.get(k) and 'by '+fullstates.get(k).get('updated by','')) or ''""",
 }
 DIFF_BRANCHES=['staging','preproduction','production','master'] #display diff links to gitweb for those baseline branches
-COUCHDB_URI=None #'http://localhost:5984/'
 
 KARMA_POINTS_PER_DAY=4
 PG_DBNAME='tasks'

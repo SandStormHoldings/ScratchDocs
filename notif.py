@@ -1,3 +1,5 @@
+from __future__ import print_function
+from builtins import range
 #!/usr/bin/env python
 
 #from deepdiff import DeepDiff
@@ -6,7 +8,6 @@ import json
 import re
 import sys
 from collections import defaultdict
-from couchdbkit.exceptions import ResourceNotFound
 import codecs
 sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 
@@ -58,7 +59,7 @@ def parse_diff(jps,o1,o2,maxlen):
                 path=jp['path']
                 value=None
                 fr=None
-                assert len(jp.keys())==2
+                assert len(list(jp.keys()))==2
                 opi='-='
             elif op in ['add','replace']:
                 if op=='add': opi='+='
@@ -66,7 +67,7 @@ def parse_diff(jps,o1,o2,maxlen):
                 path = jp['path'] ; 
                 value = jp['value'] ; 
                 fr=None
-                assert len(jp.keys())==3
+                assert len(list(jp.keys()))==3
             elif op in ['move']:
                 path=jp['path']
                 fr = jp['from']
@@ -91,12 +92,12 @@ def parse_diff(jps,o1,o2,maxlen):
             continue
         if path=='/karma' and op=='add':
             chng=None
-            for dt,kv in value.items():
+            for dt,kv in list(value.items()):
                 trcv=defaultdict(int)
-                for giver,krcvs in kv.items():
-                    for rcv,pts in krcvs.items():
+                for giver,krcvs in list(kv.items()):
+                    for rcv,pts in list(krcvs.items()):
                         trcv[rcv]+=pts
-                chng = ",".join(["%s+=%s"%(k,v) for k,v in trcv.items()])
+                chng = ",".join(["%s+=%s"%(k,v) for k,v in list(trcv.items())])
             if not chng: continue
             lchange='karma(%s)'%chng
 
@@ -117,7 +118,7 @@ def parse_diff(jps,o1,o2,maxlen):
             for value in vlist:
                 creators=[]
                 if not len(value['content'].strip()):
-                    cont+=" "+(','.join(['%s=%s'%(k,v) for k,v in value['attrs'].items()]))
+                    cont+=" "+(','.join(['%s=%s'%(k,v) for k,v in list(value['attrs'].items())]))
                 else:
                     cont+=" "+(shorten(value['content'],maxlen))
                 if value['creator'] not in creators: creators.append(value['creator'])
@@ -135,7 +136,7 @@ def parse_diff(jps,o1,o2,maxlen):
                 lkey = int(spl[2])
                 lfld = spl[3]
             except IndexError:
-                print jp
+                print(jp)
                 raise 
             except Exception as e:
                 raise
@@ -209,7 +210,7 @@ def parse(D,ts,rev=None):
                 v1 = Task.get(t._id,rev=v1rev)
                 v2 = Task.get(t._id,rev=v2rev)
             except ResourceNotFound:
-                print t._id,v1rev,v2rev,json.dumps(['NOTFOUNDERR'])
+                print(t._id,v1rev,v2rev,json.dumps(['NOTFOUNDERR']))
                 continue
             j1 = v1.to_json()
             j2 = v2.to_json()
@@ -217,7 +218,7 @@ def parse(D,ts,rev=None):
             try:
                 jps = jsonpatch.JsonPatch.from_diff(j1,j2)
             except:
-                print t._id,v1rev,v2rev,json.dumps(['JSONPATCHERR'])
+                print(t._id,v1rev,v2rev,json.dumps(['JSONPATCHERR']))
                 continue
             if jps:
                 try:
@@ -225,9 +226,9 @@ def parse(D,ts,rev=None):
                     cnt,schanges = parse_diff(jps,j2,j1,maxlen=10)
                 except:
                     raise
-                    print t._id,v1rev,v2rev,json.dumps(['PARSEDIFFERR'])
+                    print(t._id,v1rev,v2rev,json.dumps(['PARSEDIFFERR']))
                     continue
-                print t._id,v1rev,v2rev,json.dumps(['OK',lchanges,schanges])
+                print(t._id,v1rev,v2rev,json.dumps(['OK',lchanges,schanges]))
 
 
 # expected usage in order to test how notifications behave:
@@ -259,9 +260,9 @@ if __name__=='__main__':
             st,lch,sch = j
             schs = "; ".join(sch)
             if len(schs)>150:
-                print tid,r1,r2,'SCHANGE_TOOLONG',len(schs)
+                print(tid,r1,r2,'SCHANGE_TOOLONG',len(schs))
             else:
-                print tid,r1,r2,'SCHANGE_OK',schs
+                print(tid,r1,r2,'SCHANGE_OK',schs)
 
     else:
         raise Exception('argh')

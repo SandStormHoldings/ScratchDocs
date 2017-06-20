@@ -1,3 +1,5 @@
+from __future__ import print_function
+from builtins import range
 #!/usr/bin/env python
 import unittest
 import config_test as cfg
@@ -17,7 +19,7 @@ class TestTask(unittest.TestCase):
         assert len(tf)==1
         for i in range(5):
             rt2 = docs.add_task(iteration=None,parent=rt['id'],params={'summary':'1st subtask'},tags=['subtask'])
-            print rt2
+            print(rt2)
             tf = docs.get_fns(iteration='testiter',recurse=True,flush=True)
             assert len(tf)==i+2
         t1 = docs.get_task(rt['id'],read=True)

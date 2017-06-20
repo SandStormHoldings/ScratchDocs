@@ -1,49 +1,39 @@
+from __future__ import print_function
+from builtins import str
+from builtins import range
 #!/usr/bin/env python
 #-coding=utf-8
-from couchdbkit import *
-from couchdbkit.exceptions import ResourceNotFound
 import notif
 import sys
 import re
 import jsonpatch
 import pg
-from config import COUCHDB_URI,PG_DSN
+from config import PG_DSN
 def init_conn():
-    #print 'creating server'
-    if COUCHDB_URI:
-        s = Server(uri=COUCHDB_URI)
-    else:
-        s = Server()
-
     p = pg.ConnectionPool(dsn=PG_DSN)
-    
     #print 'obtaining db'
-    d = s.get_or_create_db("tasks")
-    Task.set_db(d)
-    return s,d,p
+    return p
 
-class JournalEntry(Document):
-    pass
 
-class Task(Document):
-    id = StringProperty()
-    summary = StringProperty()
-    content = StringProperty()
-
-    creator = StringProperty()
-    assignee = StringProperty()
-    created_at = DateTimeProperty()
+class Task(object):
+    _id = None
+    parent_id = None
+    contents = None
+    show_in_gantt = True
+    changed_at = None
+    changed_by = None
 
     def save(self,P,C,user=None,notify=True,fetch_stamp=None):
         try:
-            from pg import migrate_one,validate_save
             if self._id and user!='notify-trigger':
-                validate_save(C,self._id,fetch_stamp)
-            Document.save(self)
-            migrate_one(self,C,fetch_stamp=user!='notify-trigger' and fetch_stamp or None,user=user)
+                pg.validate_save(C,self._id,fetch_stamp)
+            pg.migrate_one(self,
+                           C,
+                           fetch_stamp=user!='notify-trigger' and fetch_stamp or None,
+                           user=user)
             P.commit()
         except:
-            print 'could not save task %s'%self._id
+            print('could not save task %s'%self._id)
             raise
         if not notify: return
         if notify:
@@ -53,8 +43,7 @@ class Task(Document):
     def _notify(self,user,lc=None):
         #raise Exception('in notify of %s action by user %s'%(lc,user))
         #print 'in notify'
-        import sendgrid
-        from sendgrid.helpers.mail import *
+        import sendgrid,sendgrid.helpers.mail
         import config as cfg
         from docs import P,D
         from pg import get_participants
@@ -76,7 +65,7 @@ class Task(Document):
 
         imptags = set(['critical','priority','email','bug','ops'])
         imptstr = ",".join([impt.upper() for impt in imptags.intersection(set(self.tags))])
-        nsubj = unicode(self.summary)+(imptstr and " [%s] "%imptstr or "")
+        nsubj = str(self.summary)+(imptstr and " [%s] "%imptstr or "")
         if not isnew and not nsubj.startswith('Re:'): nsubj=u'Re: '+nsubj
         tre = re.compile('\[t/([0-9\/]+)\]') #subject task id regexp
 
@@ -108,9 +97,9 @@ class Task(Document):
             if ignm in rems: rems.remove(snd)
         to = ', '.join(rems)
         if not len(rems):
-            print 'no recipients. breaking'
+            print('no recipients. breaking')
             return
-        print 'SENDING MAIL from %s TO %s with subject %s'%(snd,",".join(rems),nsubj)
+        print('SENDING MAIL from %s TO %s with subject %s'%(snd,",".join(rems),nsubj))
 
         for rcpt in rems:
             # fucking dangerous! creates loops
@@ -121,7 +110,7 @@ class Task(Document):
 
             sg = sendgrid.SendGridAPIClient(apikey=cfg.SENDGRID_APIKEY)
 
-            m = Mail(Email(snd),
+            m = sendgrid.helpers.mail.Mail(Email(snd),
                        nsubj,
                        Email(rcpt),
                        Content('text/plain',text)
@@ -135,18 +124,18 @@ class Task(Document):
         ts = Task.get(self._id)
         if not hasattr(ts,'notifications'): ts.notifications={}
         ts.notifications[rev]=notif
-        print 'saving notification'
+        print('saving notification')
         with P as p:
             C = p.cursor()
             ts.save(P,C,user='notify-trigger',notify=False)
-        print 'done'
+        print('done')
 
         
 def push_views(d):
     # from couchdbkit.loaders import FileSystemDocsLoader
     # loader = FileSystemDocsLoader('couchdb/_design/task')
     # loader.sync(d,verbose=True)
-    print 'pushing views'
+    print('pushing views')
     push('couchdb/_design/task',d,force=True)
 
 ################################################################################
@@ -156,7 +145,7 @@ import datetime
 
 class PythonObjectEncoder(JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, (list, dict, str, unicode, int, float, bool, type(None))):
+        if isinstance(obj, (list, dict, str, int, float, bool, type(None))):
             return JSONEncoder.default(self, obj)
         elif isinstance(obj,(datetime.datetime)):
             return obj.strftime('%Y-%m-%d')
@@ -215,12 +204,12 @@ def get_new_idx(par=''):
     for tid in allids:
         pth = tid.split('/')
         val = pth[-1]
-        aggk = '/'.join(map(lambda x:str(x),pth[0:-1]))
+        aggk = '/'.join([str(x) for x in pth[0:-1]])
         if aggk not in agg: agg[aggk]=0
         if int(agg[aggk])<int(val): agg[aggk]=val
         if tid not in aggk: agg[tid]=0
     #raise Exception(agg)
-    assert (not par) or (par in agg),"%s not in agg %s"%(par,agg.keys())
+    assert (not par) or (par in agg),"%s not in agg %s"%(par,list(agg.keys()))
     # print 'returning %s + / + %s'%(par,int(agg[par])+1)
     # print 'par = "%s" ; agg[par] = "%s"'%(par,agg[par])
     rt= (par and str(par)+'/'or '')+str(int(agg.get(par,0))+1)
@@ -268,7 +257,7 @@ def last_change(t,d,specific_rev=None):
         #print 'obtaining task %s rev %s'%(t._id,prev)
         t2 = Task.get(t._id,rev=prev)
     else:
-        print 'prev does not exist. starting with an empty task.'
+        print('prev does not exist. starting with an empty task.')
         prev='initial-%s'%t._id
         t2 = Task()
     j2 = t2.to_json() ; notif.clean(j2)
@@ -276,14 +265,14 @@ def last_change(t,d,specific_rev=None):
     cnt,lchanges,isnew = notif.parse_diff(jps,j1,j2,maxlen=100)
     cnt,schanges,isnew = notif.parse_diff(jps,j1,j2,maxlen=10)
 
-    if cnt: print '%s differences, %s lchanges between %s and %s'%(cnt,len(lchanges),prev,obt)
+    if cnt: print('%s differences, %s lchanges between %s and %s'%(cnt,len(lchanges),prev,obt))
     return cnt,obt,lchanges,schanges,isnew
 
 def all_changes(t,d):
     ch={}
     doc = d.open_doc(t._id,revs=True)
     revs = doc['_revisions']['ids']
-    nots = getattr(t,'notifications',{}).keys()
+    nots = list(getattr(t,'notifications',{}).keys())
     lastrevi,lastrevh = t._rev.split('-')
     idxdiff = (int(lastrevi)-len(revs))
     revs.reverse()
@@ -292,7 +281,7 @@ def all_changes(t,d):
     for rev in revs:
         if not prev: prev='initial-%s'%t._id
         notified = prev in nots
-        print prev,rev,'notified:',notified
+        print(prev,rev,'notified:',notified)
         if notified: continue
         try:
             t1 = Task.get(t._id,rev=rev)
@@ -301,7 +290,7 @@ def all_changes(t,d):
             else:
                 t2 = Task()
         except ResourceNotFound as e:
-            print 'could not find one of',prev,rev
+            print('could not find one of',prev,rev)
             prev=rev
             continue
         j1 = t1.to_json() ; notif.clean(j1)
@@ -309,14 +298,14 @@ def all_changes(t,d):
         jps = jsonpatch.JsonPatch.from_diff(j2,j1)
         cnt,lchanges,isnew = notif.parse_diff(jps,j1,j2,maxlen=100)
         cnt,schanges,isnew = notif.parse_diff(jps,j1,j2,maxlen=10)
-        print cnt,'differences',lchanges
+        print(cnt,'differences',lchanges)
         ch[rev]=(cnt,prev,lchanges,schanges)
         prev = rev
     return ch
 if __name__=='__main__':
     from docs import initvars
     from pg import get_participants
-    S,D,P = init_conn()
+    D,P = init_conn()
     import config as cfg
     initvars(cfg)
     if 'children' in sys.argv[1:]:
@@ -325,9 +314,9 @@ if __name__=='__main__':
         ts = [Task.get(sys.argv[1])]
 
     for t in ts:
-        print 'task',t._id
+        print('task',t._id)
         ch = all_changes(t,D)
-        for rev,sch in ch.items(): #(cnt,rev,lchanges,schanges)
+        for rev,sch in list(ch.items()): #(cnt,rev,lchanges,schanges)
             if 'notify' in sys.argv[1:]:
                 t._notify(user='notify-trigger',lc=sch)
 

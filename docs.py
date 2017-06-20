@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 # coding=utf-8
+from __future__ import division
+from __future__ import print_function
+from past.builtins import cmp
+from builtins import map
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import argparse
 
 from prettytable import PrettyTable
@@ -20,20 +27,20 @@ from dulwich.repo import Repo as DRepo
 import gc
 
 from couchdb import *
-S,D,P = init_conn()
+P = init_conn()
 
 def gantt_info_row(grow,excl=('status','created_at','summary','parent_id','tid')):
-    gantt = dict([(k,v) for k,v in grow.items() if k not in excl])
-    l = filter(lambda x: x is not None,[gantt['t_f'],gantt['c_f']])
-    u = filter(lambda x: x is not None,[gantt['t_l'],gantt['c_l']])
+    gantt = dict([(k,v) for k,v in list(grow.items()) if k not in excl])
+    l = [x for x in [gantt['t_f'],gantt['c_f']] if x is not None]
+    u = [x for x in [gantt['t_l'],gantt['c_l']] if x is not None]
     task_activity_frame=[len(l) and min(l) or None,
                          len(u) and max(u) or None]
     
     # (as a percentage:)
-    thrs = gantt['t'] and (gantt['t'].days + float(gantt['t'].seconds)/86400) or 0
-    wehrs = gantt['we'] and (gantt['we'].days + float(gantt['we'].seconds)/86400) or None
+    thrs = gantt['t'] and (gantt['t'].days + old_div(float(gantt['t'].seconds),86400)) or 0
+    wehrs = gantt['we'] and (gantt['we'].days + old_div(float(gantt['we'].seconds),86400)) or None
     if wehrs:
-        complete_estimate = thrs / wehrs
+        complete_estimate = old_div(thrs, wehrs)
     else:
         complete_estimate = None
 
@@ -45,7 +52,7 @@ def gantt_info_row(grow,excl=('status','created_at','summary','parent_id','tid')
 
     # if task is done, then duration is the de-facto frame
     if grow['status'] in ('DONE','CANCELLED',):
-        if len(filter(lambda x:x is not None,task_activity_frame))>1:
+        if len([x for x in task_activity_frame if x is not None])>1:
             today = datetime.datetime.now().date()
             if task_activity_frame[1]>today:
                 duration = (today-task_activity_frame[0]).days
@@ -60,7 +67,7 @@ def gantt_info_row(grow,excl=('status','created_at','summary','parent_id','tid')
     else:
         if complete_estimate:
             dursofar = datetime.datetime.now().date() - task_activity_frame[0]
-            estimate = float(dursofar.days)  / complete_estimate
+            estimate = old_div(float(dursofar.days), complete_estimate)
             duration = int(estimate)
             dt='E'
             #raise Exception('going to estimate ',r['tid'],' based on ',gr,dursofar,estimate)
@@ -163,13 +170,13 @@ def render(tplname,params,outfile=None,mode='w'):
         tpls = load_templates()
 
     t = tpls[tplname]
-    for par,val in params.items():
+    for par,val in list(params.items()):
         try:
             if type(val)==str:
-                val = unicode(val.decode('utf-8'))
+                val = str(val.decode('utf-8'))
                 params[par]=val
         except:
-            print val
+            print(val)
             raise
     r= t.render(**params)
 
@@ -229,9 +236,9 @@ def parse_attrs(node,pth,no_tokagg=False):
                 if tok in ['informed','links','repobranch']:
                     intok=True
     except:
-        print node.split('\n')
+        print(node.split('\n'))
         raise
-    for k,v in rt.items():
+    for k,v in list(rt.items()):
         if k.endswith('date'):
             for frm in date_formats:
                 try:
@@ -245,7 +252,7 @@ def parse_attrs(node,pth,no_tokagg=False):
             if len(dt)>1:
                 rt[k]+=datetime.timedelta(microseconds=int(dt[1]))
     if not no_tokagg:
-        for ta,tv in tokagg.items():
+        for ta,tv in list(tokagg.items()):
             rt[ta]=tv
 
     return rt
@@ -266,7 +273,7 @@ def filterby(fieldname,value,rtl):
         value = values.pop()
         adir = os.path.join(cfg.DATADIR,fieldname,value)
         fcmd = 'find %s -type l -exec basename {} \;'%adir
-        print fcmd
+        print(fcmd)
         st,op = gso(fcmd)  ; assert st==0,fcmd
         atids = [atid.replace('.','/') for atid in op.split('\n')]
         afiles = [os.path.join(cfg.DATADIR,atid,'task.org') for atid in atids]
@@ -285,66 +292,77 @@ def get_latest(tags='email',newer_than=None,limit=300):
     ) for t in tv if len(set(t['value'][1]).intersection(set(tags)))==len(tags)]
     trets.sort(lambda x,y: cmp(x[0],y[0]),reverse=True)
     return trets
-    
+
+def intersect(*d):
+    sets = iter(map(set, d))
+    result = next(sets)
+    for s in sets:
+        result = result.intersection(s)
+    return result
+
 def get_fns(C,assignee=None,created=None,handled_by=None,informed=None,status=None,tag=None,recurse=True,query=None,newer_than=None,tids=None,recent=False):
     """return task filenames according to provided criteria"""
     #raise Exception(assignee,created,informed)
+    qry = "select * from tasks t,tasks_pri_comb p where t.id=p.id"
+    conds=[]
     trets=[]
+    cnd=""
     if assignee:
-        trets.append(Task.view('task/assignee',key=assignee))
+        cnd+=" and contents->>'assignee'=%s"
+        conds.append(assignee)
     if informed:
-        inf = [t for t in Task.view('task/informed',key=informed)]
-        trets.append(inf)
+        cnd+=" and contents->>'informed'=%s"
+        conds.append(informed)
     if handled_by:
-        inf = [t for t in Task.view('task/handled_by',key=handled_by)]
-        trets.append(inf)
+        cnd+=" and contents->>'handled_by'=%s"
+        conds.append(handled_by)
     if created:
-        cr = [t for t in Task.view('task/creator',key=created)]
-        trets.append(cr)
+        cnd+=" and contents->>'creator'=%s"
+        conds.append(created)
     if status:
-        trets.append(Task.view('task/status',key=status))
+        cnd+=" and contents->>'status'=%s"
+        conds.append(status)
     if tag:
-        trets.append(Task.view('task/tags',key=tag))
+        cnd+=""" and contents->'tags' @> '"%s"'"""
+        conds.append(tag)
     if tids:
-        trets.append([Task.get(tid) for tid in tids])
+        cnd+=" and id in %s"
+        conds.append(tuple(tids))
     if query:
-	def intersect(*d):
-	    sets = iter(map(set, d))
-	    result = sets.next()
-	    for s in sets:
-	        result = result.intersection(s)
-	    return result
-
-	qitems = [q.strip().lower() for q in query.split(' ') if len(q.strip())]
-	tretcands = dict([(qi,[r['value'][0] for r in Task.view('task/index',key=qi)]) for qi in qitems])
-	tretvals = tretcands.values()
-	result = set(tretvals[0]).intersection(*tretvals)
-	trets.append([Task.get(r) for r in result])
+        raise Exception('query unimpl')
+        # qitems = [q.strip().lower() for q in query.split(' ') if len(q.strip())]
+        # tretcands = dict([(qi,[r['value'][0] for r in Task.view('task/index',key=qi)]) for qi in qitems])
+        # tretvals = list(tretcands.values())
+        # result = set(tretvals[0]).intersection(*tretvals)
+        # trets.append([Task.get(r) for r in result])
     if newer_than:
         raise NotImplementedError('newer_than not impl')
     if recent:
         raise NotImplementedError('recent not impl')
     if not recurse:
-        trets.append([t for t in Task.view('task/all') if len(t._id.split('/'))==1 ]
-)
+        cnd+= ' and parent_id is null'
 
-    if len(trets)==1:
-        its = dict([(t._id,t) for t in trets[0]])
-    elif len(its):
-        print trets
-        raise NotImplementedError('need intersection between all results here')
-    ids = tuple(its.keys())    
-    if len(ids):
-        priqry = "select id,comb_pri from tasks_pri_comb where id in %s"
-        C.execute(priqry,(ids,))
-        pris = C.fetchall()
-        for pri in pris:
-            its[pri['id']].pri = pri['comb_pri']
+    C.execute(qry+cnd,conds)
+    its = C.fetchall()
+    return its
+
+    # if len(trets)==1:
+    #     its = dict([(t._id,t) for t in trets[0]])
+    # elif len(its):
+    #     print(trets)
+    #     raise NotImplementedError('need intersection between all results here')
+    # # ids = tuple(its.keys())    
+    # # if len(ids):
+    # #     priqry = "select id,comb_pri from tasks_pri_comb where id in %s"
+    # #     C.execute(priqry,(ids,))
+    # #     pris = C.fetchall()
+    # #     for pri in pris:
+    # #         its[pri['id']].pri = pri['comb_pri']
             
-    for k,v in its.items():
-        if not hasattr(v,'pri'):
-            its[k].pri = 0
-    return its.values()
+    # # for k,v in list(its.items()):
+    # #     if not hasattr(v,'pri'):
+    # #         its[k].pri = 0
+    # return list(its.values())
 
 def get_parent(tid,tl=False):
     spl = tid.split('/')
@@ -384,8 +402,8 @@ def parse_iteration(pth):
     for node in root[1:]:
         head = node.get_heading()
         if node.get_heading()=='Attributes':
-            attrs = parse_attrs(unicode(node),pth)
-            for k,v in attrs.items(): rt[k]=v
+            attrs = parse_attrs(str(node),pth)
+            for k,v in list(attrs.items()): rt[k]=v
     return rt
 
 def get_table_contents(fn,force=False):
@@ -404,7 +422,7 @@ def get_table_contents(fn,force=False):
             continue
         if ln.startswith('|-'): continue
         row = parseline(ln)
-        row = dict([(headers[i],row[i]) for i in xrange(len(row))])
+        row = dict([(headers[i],row[i]) for i in range(len(row))])
 
         rt.append(row)
         #only active ones:
@@ -418,7 +436,7 @@ def get_participants(DATADIR,disabled=False,sort=False,force=False):
             rt[row['Username']]=row
 
     if sort:
-        rt = rt.items()
+        rt = list(rt.items())
         rt.sort(lambda r1,r2: cmp(r1[0],r2[0]))
     return rt
 
@@ -453,7 +471,7 @@ def parse_change(t,body,descr=True):
     else:
         app = u''
     stchangere=re.compile('^(\-|\+)\* (%s)'%'|'.join(cfg.STATUSES))
-    stch = filter(lambda r: stchangere.search(r),ch)
+    stch = [r for r in ch if stchangere.search(r)]
     canlines=0
     if len(stch)==2:
         sw = stchangere.search(stch[0]).group(2)
@@ -462,7 +480,7 @@ def parse_change(t,body,descr=True):
         app+='; %s'%scdigest
         canlines+=1
     asgnchangere=re.compile('^(\-|\+)'+re.escape('- assigned to :: ')+'(.+)')
-    asch = filter(lambda r: asgnchangere.search(r),ch)
+    asch = [r for r in ch if asgnchangere.search(r)]
     if len(asch)==2:
         aw = asgnchangere.search(asch[0]).group(2)
         an = asgnchangere.search(asch[1]).group(2)
@@ -470,9 +488,9 @@ def parse_change(t,body,descr=True):
         app+='; %s'%asdigest
         canlines+=1
     laddre = re.compile('^(\+)')
-    laddres = filter(lambda r: not r.startswith('+++') and laddre.search(r) or False,ch[4:]) #skipping diff header
+    laddres = [r for r in ch[4:] if not r.startswith('+++') and laddre.search(r) or False] #skipping diff header
     lremre = re.compile('^(\-)')
-    lremres = filter(lambda r: not r.startswith('+++') and lremre.search(r) or False,ch[4:]) #skipping diff header
+    lremres = [r for r in ch[4:] if not r.startswith('+++') and lremre.search(r) or False] #skipping diff header
     if len(laddres)==len(lremres):
         if canlines!=len(laddres):
             app+='; %sl'%(len(laddres))
@@ -541,19 +559,19 @@ def add_iteration(name,start_date=None,end_date=None):
     render('iteration',{'start_date':start_date,'end_date':end_date},itfn)
 
 def add_task(P,C,parent=None,params={},force_id=None,tags=[],user=None,fetch_stamp=None):
-    print 'in add_task'
+    print('in add_task')
     if parent:
         if force_id:
             newidx = force_id
         else:
             newidx = get_new_idx(parent)
     else:
-        print 'is a top level task'
+        print('is a top level task')
         if force_id:
             #make sure we don't have it already
             newidx = str(force_id)
         else:
-            print 'getting a new index'
+            print('getting a new index')
             newidx = get_new_idx()
     fullid = newidx
 
@@ -622,7 +640,7 @@ def makehtml(notasks=False,files=[]):
         if needrun:
             cmd = 'emacs -batch --visit="%s" --funcall org-export-as-html-batch'%(orgf)
             st,op = gso(cmd) ; assert st==0,"%s returned %s"%(cmd,op)
-            print 'written %s'%pfn(outfile)
+            print('written %s'%pfn(outfile))
 
             if os.path.exists(orgf):
                 md = md5(orgf)
@@ -631,7 +649,7 @@ def makehtml(notasks=False,files=[]):
 
         assert os.path.exists(outfile)
 
-    print 'processed %s orgfiles.'%cnt
+    print('processed %s orgfiles.'%cnt)
 
 def by_status(stories):
     rt = {}
@@ -747,7 +765,7 @@ def makeindex(C):
 
     assigned_files={} ; excl=[]
     for asfn in ['alltime','current']:
-        for assignee,storycnt in assignees.items():
+        for assignee,storycnt in list(assignees.items()):
             if assignee!=None and assignee not in participants:
                 if assignee not in excl:
                     #print 'excluding %s'%assignee
@@ -794,22 +812,22 @@ def list_stories(C,iteration=None,assignee=None,status=None,tag=None,recent=Fals
         pt.add_row([sd['story'],summary,sd['assigned to'],sd['status'],','.join(sd.get('tags',''))])
         cnt+=1
     pt.sortby = 'status'
-    print pt
-    print '%s stories.'%cnt
+    print(pt)
+    print('%s stories.'%cnt)
 
 def tokenize(n):
     return '%s-%s'%(n['whom'],n.get('how'))
 
 def imp_commits(args):
-    print 'importing commits.'
+    print('importing commits.')
     if not os.path.exists(cfg.REPO_DIR): os.mkdir(cfg.REPO_DIR)
     excommits = loadcommits()
     for repo in cfg.REPOSITORIES:
-        print 'running repo %s'%repo
+        print('running repo %s'%repo)
         repon = os.path.basename(repo).replace('.git','')
         repodir = os.path.join(cfg.REPO_DIR,os.path.basename(repo))
         if not os.path.exists(repodir):
-            print 'cloning.'
+            print('cloning.')
             cmd = 'git clone -b staging %s %s'%(repo,repodir)
             st,op = gso(cmd) ; assert st==0,"%s returned %s\n%s"%(cmd,st,op)
         prevdir = os.getcwd()
@@ -817,10 +835,10 @@ def imp_commits(args):
         #refresh the repo
         
         if not args.nofetch:
-            print 'fetching at %s.'%os.getcwd()
+            print('fetching at %s.'%os.getcwd())
             st,op = gso('git fetch -a') ; assert st==0,"git fetch -a returned %s\n%s"%(st,op)
 
-        print 'running show-branch'
+        print('running show-branch')
         cmd = 'git show-branch -r'
         st,op = gso(cmd) ; assert st==0,"%s returned %s\n%s"%(cmd,st,op)
         commits=[] ; ignoredbranches=[]
@@ -828,7 +846,7 @@ def imp_commits(args):
             if ln=='': continue
             if ln.startswith('warning:'): 
                 if 'ignoring' not in ln:
-                    print ln
+                    print(ln)
                 else:
                     ign = re.compile('origin/([^;]+)').search(ln).group(1)
                     ignoredbranches.append(ign)
@@ -842,7 +860,7 @@ def imp_commits(args):
                 commits.append([exact,branch,False])
             else:
                 if not re.compile('^(\-+)$').search(ln):
-                    print 'cannot extract',ln
+                    print('cannot extract',ln)
         #now go over the ignored branches
         if len(ignoredbranches): 
             for ign in set(ignoredbranches):
@@ -855,7 +873,7 @@ def imp_commits(args):
                     #print 'added ign %s / %s'%(lcid,ign)
 
         cnt=0 ; branches=[]
-        print 'going over %s commits.'%len(commits)
+        print('going over %s commits.'%len(commits))
         for relid,branch,isexact in commits:
             if isexact:
                 cmd = 'git show %s | head'%relid
@@ -887,7 +905,7 @@ def imp_commits(args):
                     excommits[key]['br'].append(branch)
             cnt+=1
             #print '%s: %s/%s %s by %s on task %s'%(dt,repon,branch,cid,un,task)
-        print 'found out about %s commits, branches %s'%(cnt ,branches)
+        print('found out about %s commits, branches %s'%(cnt ,branches))
         os.chdir(prevdir)        
         fp = open(commitsfn,'w')
         json.dump(excommits,fp,indent=True,sort_keys=True) ; fp.close()
@@ -920,8 +938,8 @@ def parsegitdate(s):
 def assign_commits():
     exc = json.load(open(commitsfn,'r'))
     metas={}
-    print 'going over commits.'
-    for ck,ci in exc.items():
+    print('going over commits.')
+    for ck,ci in list(exc.items()):
 
         #HEAD actually means staging in our book.
         branches = [cibr.replace('HEAD','staging') for cibr in ci['br']]
@@ -935,12 +953,12 @@ def assign_commits():
         if not t: 
             strans = get_story_trans()
             if ci['t'] in strans:
-                print 'translating %s => %s'%(ci['t'],strans[ci['t']])
+                print('translating %s => %s'%(ci['t'],strans[ci['t']]))
                 if strans[ci['t']]=='None':
                     continue
                 t = get_task(strans[ci['t']])
             else:
-                print 'could not find task %s, which was referenced in %s: %s'%(ci['t'],ck,ci)
+                print('could not find task %s, which was referenced in %s: %s'%(ci['t'],ck,ci))
                 continue
 
         #metadata cache
@@ -975,10 +993,10 @@ def assign_commits():
             if lastbranchkey not in m['branchlastcommits'] or parsegitdate(m['branchlastcommits'][lastbranchkey])<dt:
                 m['branchlastcommits'][lastbranchkey]=ci['s']
 
-    print 'saving.'
-    for fn,m in metas.items():
+    print('saving.')
+    for fn,m in list(metas.items()):
         savemeta(fn,m)
-    print '%s metas touched.'%(len(metas))
+    print('%s metas touched.'%(len(metas)))
 
 def tasks_validate(tasks=None,catch=True,amend=False,checkhours=True,checkreponames=True):
     cnt=0 ; failed=0
@@ -998,9 +1016,9 @@ def tasks_validate(tasks=None,catch=True,amend=False,checkhours=True,checkrepona
                         assert '/' in blc,"%s has no /"%(blc)
                         assert len(blc.split('/'))<=2,"%s has too many /"%(blc)
                         assert 'HEAD' not in blc,"%s has HEAD"%(blc)
-                    except Exception,e:
+                    except Exception as e:
                         if amend:
-                            print 'amending %s'%e
+                            print('amending %s'%e)
                             for fn in ['lastcommits','commits_qty','branchlastcommits','commiters','last_commit','branches']:
                                 if t['meta'].get(fn):
                                     del t['meta'][fn]
@@ -1016,12 +1034,12 @@ def tasks_validate(tasks=None,catch=True,amend=False,checkhours=True,checkrepona
                 for person,hrs in t.get('person_hours'):
                     try:
                         assert '@' not in person,"hours in person: %s is bad"%(person)
-                    except Exception,e:
+                    except Exception as e:
                         if amend:
-                            print 'amending %s'%e
+                            print('amending %s'%e)
                             hrsfn = t['metadata'].replace('meta.json','hours.json')
                             hrsm = loadmeta(hrsfn)
-                            for hdt,items in hrsm.items():
+                            for hdt,items in list(hrsm.items()):
                                 if person in items:
                                     if not firstbad or hdt<firstbad: firstbad=hdt
 
@@ -1045,12 +1063,12 @@ def tasks_validate(tasks=None,catch=True,amend=False,checkhours=True,checkrepona
             assert len(dfiles)==1,"%s is not 1 for %s"%(dfiles,cmd)
             #print '%s : %s , %s , %s, %s'%(t['id'],t['summary'] if len(t['summary'])<40 else t['summary'][0:40]+'..',t['assigned to'],t['created by'],t['status'])
             cnt+=1
-        except Exception,e:
+        except Exception as e:
             if not catch: raise
-            print 'failed validation for %s - %s'%(tf,e)
+            print('failed validation for %s - %s'%(tf,e))
             failed+=1
 
-    print '%s tasks in all; %s failed; firstbad=%s'%(cnt,failed,firstbad)
+    print('%s tasks in all; %s failed; firstbad=%s'%(cnt,failed,firstbad))
     return failed
 
 def addlink(tsaves,tid,r):
@@ -1061,7 +1079,7 @@ def addlink(tsaves,tid,r):
         t.cross_links=[]
     if r not in t.cross_links:
         tcheck = get_task(r)
-        print 'task.%s -> +%s'%(t._id,r)
+        print('task.%s -> +%s'%(t._id,r))
         t.cross_links.append(r)
         return True
     return False
@@ -1070,7 +1088,7 @@ def rmlink(tsaves,tid,r):
     if tid not in tsaves: tsaves[tid]=get_task(tid)
     t = tsaves[tid]
     if 'cross_links' in t and r in t.cross_links:
-        print 'task.%s -> -%s'%(t._id,r)
+        print('task.%s -> -%s'%(t._id,r))
         t.cross_links.remove(r)
         return True
     return False
@@ -1082,7 +1100,7 @@ def get_karma_receivers():
         if k not in karma: karma[k]=0
         karma[k]+=t['value'][1]
     rt=[]
-    for k,points in karma.items():
+    for k,points in list(karma.items()):
         date,task,receiver = k.split(',')
         rt.append({'date':date,
                    'task':task,
@@ -1097,7 +1115,7 @@ def get_karma(date,user):
 
 def deps_validate(C,tsaves,tid,deps):
     from couchdbkit.exceptions import ResourceNotFound    
-    print('deps_validate',tid,deps)
+    print(('deps_validate',tid,deps))
     t = tsaves[tid]
 
     # avoid adding task itself as its own dependency
@@ -1172,11 +1190,11 @@ def rewrite(P,C,tid,o_params={},safe=True,user=None,fetch_stamp=None):
               'external_msg_id':hasattr(t,'external_msg_id') and t.external_msg_id or None,
               }
 
-    for k,v in o_params.items():
+    for k,v in list(o_params.items()):
         if k in ['cross_links','cross_links_raw','created_at','creator']: continue
         if k not in ['karma','orig_subj','handled_by']: assert k in params,"%s not in %s"%(k,params)
         params[k]=v
-    for k,v in params.items():
+    for k,v in list(params.items()):
         if 'cross_links' in k: continue
         if k not in ['informed','external_id','external_thread_id','external_msg_id','karma','orig_subj','handled_by','dependencies']:
             assert hasattr(t,k),"task does not have %s"%k
@@ -1186,8 +1204,8 @@ def rewrite(P,C,tid,o_params={},safe=True,user=None,fetch_stamp=None):
     deps = deps_validate(C,tsaves,tid,deps)
     #print('deps of tsaves',tid,'is ',tsaves[tid].dependencies)
         
-    for tk,ts in tsaves.items():
-        print ts,'save(user=%s)'%user
+    for tk,ts in list(tsaves.items()):
+        print(ts,'save(user=%s)'%user)
         ts.save(P,C,user=user,fetch_stamp=tk==tid and fetch_stamp or None)
 
 def make_demo(iteration,tree=False,orgmode=False):     
@@ -1228,7 +1246,7 @@ def make_demo(iteration,tree=False,orgmode=False):
             assert fnd,"could not find \"%s\" in %s, initparts are %s"%(tname,[ch.name for ch in spointer2.children],initparts)
         spointer['item']={'summary':s['summary'],'assignee':s['assigned to'],'status':s['status'],'id':s['id']}
     if tree:
-        print unicode(tr2)
+        print(str(tr2))
     else:
         render('demo',{'trs':tr,'iteration':iteration,'rurl':cfg.RENDER_URL},'demo-%s.org'%iteration)
     
@@ -1243,7 +1261,7 @@ def index_assigned(C,tid=None,dirname='assigned',idxfield='assigned to'):
 
     assert os.path.exists(asgndir),"%s does not exist"%asgndir
 
-    print 'reindexing %s task files'%(len(tfs))
+    print('reindexing %s task files'%(len(tfs)))
     acnt=0
     for fn in tfs:
         #print 'parsing %s'%fn
@@ -1251,7 +1269,7 @@ def index_assigned(C,tid=None,dirname='assigned',idxfield='assigned to'):
         #print 'parsed %s ; getting task'%pfn['id']
         t = get_task(pfn['id'],read=True)
         #print t['id'],t['assigned to']
-        if type(t[idxfield]) in [unicode,str]:
+        if type(t[idxfield]) in [str,str]:
             myidxs=[t[idxfield]]
         else:
             myidxs=t[idxfield]
@@ -1270,16 +1288,16 @@ def index_assigned(C,tid=None,dirname='assigned',idxfield='assigned to'):
                 os.symlink(fn,tpath)
                 #st,op = gso(lncmd) ; assert st==0,lncmd
                 assert os.path.exists(tpath)
-    print 'indexed under %s %s'%(acnt,idxfield)
+    print('indexed under %s %s'%(acnt,idxfield))
         
 def index_tasks(tid=None,reindex_attr=None):
     dnf = {'creators':'created by',
            'assigned':'assigned to',
            'tagged':'tags'}
-    if reindex_attr: assert reindex_attr in dnf.keys()
-    for dn,attr_name in dnf.items():
+    if reindex_attr: assert reindex_attr in list(dnf.keys())
+    for dn,attr_name in list(dnf.items()):
         if reindex_attr and reindex_attr!=dn: continue
-        print 'reindexing %s (tid %s)'%(dn,tid)
+        print('reindexing %s (tid %s)'%(dn,tid))
         fdn = os.path.join(cfg.DATADIR,dn)
         st,op = gso('rm -rf %s/*'%fdn); assert st==0
         index_assigned(tid,dn,attr_name)
@@ -1395,7 +1413,7 @@ if __name__=='__main__':
     if args.command=='show':
         for task in args.tasks:
             t = get_task(task)
-            print t
+            print(t)
     if args.command=='move':
         tasks = args.fromto[0:-1]
         dest = args.fromto[-1]
@@ -1431,17 +1449,17 @@ if __name__=='__main__':
             st,op = gso('git add *hours.json') ; assert st==0
             commitm.append('hours commit')
         st,op = gso('git status') ; assert st==0
-        print op
+        print(op)
         cmd = 'git commit -m "%s"'%("; ".join(commitm))
         st,op = gso(cmd) ; 
         if 'no changes added to commit' in op and st==256:
-            print 'nothing to commit'
+            print('nothing to commit')
         else:
             assert st==0,"%s returned %s\n%s"%(cmd,st,op)
             if not args.nopush:
                 cmd = 'git push'
                 st,op = gso(cmd) ; assert st==0,"%s returned %s\n%s"%(cmd,st,op)
-                print 'pushed to remote'
+                print('pushed to remote')
             os.chdir(prevdir)
     if args.command=='rewrite':
         atasks = [at for at in args.tasks if at]
@@ -1473,7 +1491,7 @@ if __name__=='__main__':
                 mk = datetime.datetime.strptime(k,'%Y-%m-%d').date()
                 if mk>=from_date and mk<=to_date:
                     #print mk,m[k],sid
-                    for person,hours in m[k].items():
+                    for person,hours in list(m[k].items()):
                         if sid not in agg: 
                             agg[sid]={}
                         if tlsid not in tagg:
@@ -1496,40 +1514,40 @@ if __name__=='__main__':
                         sagg[tlsid]['--']+=hours
                         pagg[person]+=hours
 
-        print '* per-Participant (time tacked) view'
+        print('* per-Participant (time tacked) view')
         ptp = PrettyTable(['Person','Hours'])
         ptp.sortby='Hours'
         htot=0
-        for person,hours in pagg.items():
+        for person,hours in list(pagg.items()):
             ptp.add_row([person,hours])
             htot+=hours
         ptp.add_row(['TOT',htot])
-        print ptp
+        print(ptp)
 
         for smode in ['detailed','tl','sagg']:
             headers = ['Summary','Person','Hours']
             if smode=='detailed':
-                tcols = ['Task %s'%i for i in xrange(maxparts)] + headers
+                tcols = ['Task %s'%i for i in range(maxparts)] + headers
                 mpadd=3
-                cyc = agg.items()
-                print '* Detailed view'
+                cyc = list(agg.items())
+                print('* Detailed view')
             elif smode=='tl':
                 tcols = ['Task 0'] + headers
                 mpadd=1
-                cyc = tagg.items()
-                print '* Top Level Task view'
+                cyc = list(tagg.items())
+                print('* Top Level Task view')
             elif smode=='sagg':
                 tcols=['Task 0']+ ['Summary','Hours']
                 mpadd=0
-                cyc = sagg.items()
-                print '* per-Task view'
+                cyc = list(sagg.items())
+                print('* per-Task view')
             pt = PrettyTable(tcols)
             pt.align['Summary']='l'
             hrs=0
             if smode=='sagg':
                 pt.sortby='Hours'
             for sid,people in cyc:
-                for person,hours in people.items():
+                for person,hours in list(people.items()):
                     if sid not in tcache:
                         tcache[sid] = get_task(sid)
                     td = tcache[sid]
@@ -1547,9 +1565,9 @@ if __name__=='__main__':
                     hrs+=hours
                     pt.add_row(dt)
                 if smode!='sagg':
-                    pt.add_row(['--' for i in xrange(maxparts+mpadd)])
-            pt.add_row(['TOT']+['--' for i in xrange(maxparts+mpadd-2)]+["%4.2f"%hrs])
-            print pt
+                    pt.add_row(['--' for i in range(maxparts+mpadd)])
+            pt.add_row(['TOT']+['--' for i in range(maxparts+mpadd-2)]+["%4.2f"%hrs])
+            print(pt)
                     
 
 def get_parent_descriptions(tid):
@@ -1557,7 +1575,7 @@ def get_parent_descriptions(tid):
     #obtain parent descriptions
     parents = tid.split('/')
     opar=[]
-    for i in xrange(len(parents)-1): opar.append('/'.join(parents[:i+1]))
+    for i in range(len(parents)-1): opar.append('/'.join(parents[:i+1]))
     parents = [(pid,get_task(pid)['summary']) for pid in opar]
     return parents
 
@@ -1570,7 +1588,7 @@ def read_current_metastates_worker(items,metainfo=False):
                 'raw':i['content'],
                 'updated':i['created_at'],
                 'updated by':i['creator']}
-        for attr,attrv in i['attrs'].items():
+        for attr,attrv in list(i['attrs'].items()):
             if metainfo:
                 rt[attr]={'value':attrv,
                           'updated':i['created_at'],
@@ -1603,7 +1621,7 @@ def render_journal_content(user,content,metastates):
     cnt = """\n** <%s> :%s:\n"""%(now.strftime(date_formats[2]),user)
     if len(metastates):
         cnt+="*** Attributes\n"
-        for ms,msv in metastates.items():
+        for ms,msv in list(metastates.items()):
             cnt+="- %s :: %s\n"%(ms,msv)
     if len(content):
         cnt+="*** Content\n"
@@ -1613,10 +1631,10 @@ def render_journal_content(user,content,metastates):
 def append_journal_entry(P,C,task,adm,content,metastates={},created_at=None):
     try:
         assert len(metastates) or len(content)
-    except TypeError,e:
-        print('metastates',metastates,'content',content)
+    except TypeError as e:
+        print(('metastates',metastates,'content',content))
         raise
-    for k,v in metastates.items():
+    for k,v in list(metastates.items()):
         assert k in cfg.METASTATES_FLAT,"%s not in metastates"%k
         if type(cfg.METASTATES_FLAT[k])==tuple:
             assert v in cfg.METASTATES_FLAT[k],"%s not in %s"%(v,cfg.METASTATES_FLAT[k])
@@ -1659,7 +1677,7 @@ def metastates_agg(nosuper=True,tags_limit=[]):
 
     #raise Exception(len([t for t in ts if get_task(t['id']).status=='TODO']))
     import itertools
-    for tid,kvs in unqkeys.items():
+    for tid,kvs in list(unqkeys.items()):
         kvss = ','.join(sorted(kvs))
         if kvss not in unqtypes: unqtypes[kvss]=[]
         if tid not in unqtypes[kvss]: 
@@ -1668,16 +1686,16 @@ def metastates_agg(nosuper=True,tags_limit=[]):
             raise Exception('%s already in %s'%(tid,kvss))
 
     if nosuper:
-        for kvs,tids in unqtypes.items():
+        for kvs,tids in list(unqtypes.items()):
             unqtypes_nosuper[kvs]=metastates_nosuper_qry(kvs,tids,unqkeys,unqtypes)
-            print '%s (%s) => (%s)'%(kvs,len(unqtypes[kvs]),len(unqtypes_nosuper[kvs]))
+            print('%s (%s) => (%s)'%(kvs,len(unqtypes[kvs]),len(unqtypes_nosuper[kvs])))
     #raise Exception(len(unqtypes['status=TODO']),len(unqtypes_nosuper.get('status=TODO',[])))
     return unqkeys,unqtypes,unqtypes_nosuper
 
 def metastates_nosuper_qry(arg,its,unqkeys,unqtypes):
     #print 'starting off with ',len(its)
     nosuper_rt=its
-    for unqt,tids in unqtypes.items():
+    for unqt,tids in list(unqtypes.items()):
         if unqt==arg: continue
         nosuper_rt=set(nosuper_rt)-set(tids)
         #print 'after removal of',unqt,'we are left with',len(nosuper_rt)
@@ -1686,7 +1704,7 @@ def metastates_nosuper_qry(arg,its,unqkeys,unqtypes):
 def metastates_qry(arg,nosuper=True,tags_limit=[]):
     sets={}
     conds = dict([k.split('=') for k in arg.replace('-',' ').split(',')])
-    for cnd,cndv in conds.items():
+    for cnd,cndv in list(conds.items()):
         ts = Task.view('task/metastates',key=[cnd,cndv])
         cndp = cnd.replace(' ','-')+' '+cndv.replace(' ','-')
         tids=[]
@@ -1698,8 +1716,8 @@ def metastates_qry(arg,nosuper=True,tags_limit=[]):
             tids.append(t['id'])
         tids = set(tids)
         sets[cndp]=tids
-        print cndp,len(tids)
-    setvs = sets.values()
+        print(cndp,len(tids))
+    setvs = list(sets.values())
     its = setvs[0].intersection(*setvs)
     #print len(its),'intersection items.'
     if nosuper:

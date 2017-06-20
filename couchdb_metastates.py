@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import datetime
 from couchdbkit import *
 from couchdbkit.designer import push
@@ -23,24 +24,24 @@ if __name__=='__main__':
 
     if len(sys.argv)>1:
         res,res2,nosuper = metastates_qry(sys.argv[1])
-        for arg,tids in res.items():
+        for arg,tids in list(res.items()):
             for tid in tids:
-                print 'attr',arg,tid
+                print('attr',arg,tid)
         for tid in res2:
-            print 'intersection',sys.argv[1],tid
+            print('intersection',sys.argv[1],tid)
         for tid in nosuper:
-            print 'nosuper',sys.argv[1],tid
+            print('nosuper',sys.argv[1],tid)
     else:
         unqkeys,unqtypes,unqtypes_nosuper = metastates_agg()
         #raise Exception(len(unqtypes['status=TODO']),len(unqtypes_nosuper['status=TODO']))
-        for tid,kvs in unqkeys.items():
+        for tid,kvs in list(unqkeys.items()):
             for kv in kvs:
-                print 'attr',tid,kv.replace('=',' ')
-        for kvs,tids in unqtypes.items():
+                print('attr',tid,kv.replace('=',' '))
+        for kvs,tids in list(unqtypes.items()):
             for tid in tids:
-                print 'conds',kvs,tid
-        for kvs,tids in unqtypes_nosuper.items():
+                print('conds',kvs,tid)
+        for kvs,tids in list(unqtypes_nosuper.items()):
             for tid in tids:
-                print 'conds_nosuper',kvs,tid
+                print('conds_nosuper',kvs,tid)
 
 

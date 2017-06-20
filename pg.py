@@ -1,3 +1,5 @@
+from __future__ import print_function
+from builtins import object
 import psycopg2
 import psycopg2.extras
 from gevent.lock import BoundedSemaphore as Semaphore
@@ -115,7 +117,7 @@ def journal_digest(j):
         cat = i['created_at']
         jc = i['content']
         ja = i['creator']
-        for k,v in i['attrs'].items():
+        for k,v in list(i['attrs'].items()):
             if k not in rt: rt[k]={'created_at':cat}
             if rt[k]['created_at']<=cat:
                 rt[k]['created_at']=cat
@@ -179,7 +181,7 @@ def migrate_one(t,pgc,fetch_stamp=None,user=None):
 
     data = (tdj,parid,chat,suser,t._id)
     #print qry,data
-    print(op,t._id,parid)
+    print((op,t._id,parid))
     pgc.execute(qry,data)
 
 # -- create table tasks (id varchar primary key, parent_id varchar references tasks(id) , contents json);
@@ -213,7 +215,7 @@ def get_participants(C,sort=True,disabled=False):
     rt = {}
     for r in C.fetchall():
         if r['username'] not in rt: rt[r['username']]={}
-        for k in r.keys():
+        for k in list(r.keys()):
             rt[r['username']][k]=r[k]
     
     return rt #dict([(r['username'],dict([(k,r[k]) for k in r.keys()])) for r in C.fetchall()])

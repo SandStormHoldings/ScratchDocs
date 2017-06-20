@@ -1,3 +1,4 @@
+from builtins import object
 #kindly borrowed from http://www.acooke.org/cute/ASCIIDispl0.html
 class Tree(object):
     def __init__(self, name, *children):

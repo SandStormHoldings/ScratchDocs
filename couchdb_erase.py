@@ -1,3 +1,4 @@
+from __future__ import print_function
 import datetime
 from couchdbkit import *
 from couchdbkit.designer import push
@@ -16,7 +17,7 @@ if __name__=='__main__':
     for t in tasks: 
         #get rid of old id tasks here
         if len(t._id)==32:
-            print t._id
+            print(t._id)
             t.delete()
             continue
         t.path = [int(tp) for tp in t.path]

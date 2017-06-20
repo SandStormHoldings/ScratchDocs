@@ -13,6 +13,9 @@ $ sd/emails_import.py --fetch [--limit=XXX] > /tmp/helpdesk-XXX.json #have a fre
 $ sd/emails_import.py --fetch --notmuch-filter="date:3days.." > new.json # or fetch new emails
 $ FN=new.json ; sort -k2,1 $FN | pv -s $(wc -c $FN | awk '{print $1}') | sd/emails_import.py --insert
 """
+from __future__ import print_function
+from past.builtins import cmp
+from builtins import filter
 from docs import initvars
 import config as cfg
 initvars(cfg)
@@ -43,8 +46,8 @@ with P as p:
 shortemre = re.compile('^([^><@]+)@([^><@]+)$')
 longemre = re.compile('^(.*)( |)<([^@]+)@([^>]+)>')
 tre = re.compile('\[t/([0-9\/]+)\]') #subject task id regexp
-pems = dict([(pv['email'].strip(),pk) for pk,pv in p.items()])
-pnames = dict([(pv['name'].strip(),pk) for pk,pv in p.items()])
+pems = dict([(pv['email'].strip(),pk) for pk,pv in list(p.items())])
+pnames = dict([(pv['name'].strip(),pk) for pk,pv in list(p.items())])
 
 # here's a good method to obtain a list and frequency of appearance of unresolved email addresses (not in tasks):
 # cat emails.json | cut -f3- -d" " | jq -c '.recipients' | sed 's/,/\n/g' | sed 's/\[//g' | sed 's/\]//g' | sed 's/\"//g' | sort | uniq -c | sort -n | grep '@'
@@ -83,7 +86,7 @@ def collect_data(m):
                 'cc':m.get_header('Cc').split(","),
                 'bcc':m.get_header('Bcc').split(",")}
     recipients=[]
-    for k,v in rcpt_all.items():
+    for k,v in list(rcpt_all.items()):
         rcpt_all[k] = list(set([r.strip() for r in v if r.strip()!='']))
         rcpt_all[k] = [EMAIL_MATCH_TEAM(r) and EMAIL_MATCH_TEAM(r) or r  for r in rcpt_all[k]]
         for recp in rcpt_all[k]:
@@ -128,7 +131,7 @@ def collect_data(m):
             content = pt.get_payload(decode=False) #.encode('utf-8','iso8859-1')
             try:
                 content = content.decode(charset and charset or 'utf-8',errors='replace').strip()
-            except UnicodeDecodeError, ud:
+            except UnicodeDecodeError as ud:
                 sys.stderr.write("CONTENT:\n")
                 #sys.stderr.write(content)
                 sys.stderr.write("\nCOULD NOT DECODE!! with %s\n"%charset)
@@ -138,7 +141,7 @@ def collect_data(m):
 
     #HACK ALERT: extract only the reply fom the message
 
-    contents = map(lambda x: (x[0],"\n".join([ln for ln in x[1].split("\n") if not ln.startswith('>')])),contents)
+    contents = [(x[0],"\n".join([ln for ln in x[1].split("\n") if not ln.startswith('>')])) for x in contents]
     clidx=0
     for cl in contents:
         rt=[]
@@ -151,12 +154,11 @@ def collect_data(m):
 
 
     #if len(contents)>1: raise Exception([(c[0],len(c[1])) for c in contents])
-    contents = map(lambda x: (x[0],len(x[1])>cfg.EMAIL_CONTENT_TRIM_LENGTH and x[1][0:cfg.EMAIL_CONTENT_TRIM_LENGTH]+'\n .. TRIMMED' or x[1])
-                   ,contents)
+    contents = [(x[0],len(x[1])>cfg.EMAIL_CONTENT_TRIM_LENGTH and x[1][0:cfg.EMAIL_CONTENT_TRIM_LENGTH]+'\n .. TRIMMED' or x[1]) for x in contents]
     if len(contents):
         (charset,content) = contents[0]
     
-    rt = dict(filter(lambda x: (x[0] in item_keys ) , locals().items()))
+    rt = dict([x for x in list(locals().items()) if (x[0] in item_keys )])
     return rt
 
 if __name__=='__main__':
@@ -173,7 +175,7 @@ if __name__=='__main__':
     if erase:
         chs = get_children(ptid)
         for ch in chs:
-            print 'erasing',ch._id,ch.summary
+            print('erasing',ch._id,ch.summary)
             ch.delete()
     elif fetch:
         # query for emails
@@ -204,8 +206,8 @@ if __name__=='__main__':
             arr = ln.split(" ")
             try:
                 md = json.loads(" ".join(arr[2:]))
-            except ValueError,ve:
-                print('could not decode',arr)
+            except ValueError as ve:
+                print(('could not decode',arr))
                 raise
 
 
@@ -225,23 +227,23 @@ if __name__=='__main__':
             if tres:
                 force_id = tres.group(1)
                 is_reply = True
-                print 'DETERMINED TID FROM SUBJECT',force_id
+                print('DETERMINED TID FROM SUBJECT',force_id)
 
             if len(external_ids_task_ids):ext = get_task(external_ids_task_ids[0])
             else:ext = None
                 
             if not is_reply:
-                print 'NOT A REPLY, commencing, unq key %s'%md['unq_key']
+                print('NOT A REPLY, commencing, unq key %s'%md['unq_key'])
 
 
                 # do we have an existing task with that unique key?
                 if not force_id:
                     if len(external_ids_task_ids):
                         force_id = external_ids_task_ids[0]
-                        print 'FORCING UPDATE ON ID %s'%force_id
+                        print('FORCING UPDATE ON ID %s'%force_id)
                     else:
                         force_id = None
-                        print 'CREATING NEW'
+                        print('CREATING NEW')
                 uns = "** Email contents\n"
                 if ext:
                     if md['content'] in ext.unstructured:
@@ -274,18 +276,18 @@ if __name__=='__main__':
                         'unstructured':unsc
                 }
 
-                print 'resolved id is %s ; overwrite=%s'%(force_id,overwrite)
+                print('resolved id is %s ; overwrite=%s'%(force_id,overwrite))
                 if len(idargs)>1 and force_id not in idargs: continue
 
                 try:
                     if force_id and overwrite:
-                        print 'OVERWRITE IS ON'
+                        print('OVERWRITE IS ON')
                         with P as p:
                             C = p.cursor()
                             rewrite(P,C,force_id,o_params=pars,user=md['team_sender'])
                         rw_cnt+=1
                     elif force_id:
-                        print '***** NOT REWRITING EXISTING %s'%force_id
+                        print('***** NOT REWRITING EXISTING %s'%force_id)
                         noop_cnt+=1
                     else:
                         with P as p:
@@ -295,8 +297,8 @@ if __name__=='__main__':
                                             tags=['email'],
                                             force_id=force_id)
                         nw_cnt+=1
-                except UnicodeDecodeError,e:
-                    print type(content),charset,content.decode('utf-8')
+                except UnicodeDecodeError as e:
+                    print(type(content),charset,content.decode('utf-8'))
                     raise
             else:
                 # if in a thread reply, add it as a journal entry
@@ -308,10 +310,10 @@ if __name__=='__main__':
                 exjournals = list(Task.view('task/external_journal_ids',key=md['mid']))
                 assert len(exjournals)==0
                 if len(master)<1:
-                    print 'CANNOT FIND MASTER ENTRY %s ; skipping'%(md['thread_id'])
+                    print('CANNOT FIND MASTER ENTRY %s ; skipping'%(md['thread_id']))
                 else:
                     assert len(master)==1,"masters %s for %s"%(master,md['thread_id']) ;  mid = master[0] #FIXME: will need better heuristic
-                    print 'JOURNAL INSERT/UPDATE on %s'%md['mid']
+                    print('JOURNAL INSERT/UPDATE on %s'%md['mid'])
                     t = get_task(master[0])
                     jattrs = [je['attrs'].get('unq_key') for je in t.journal]
                     j_cr_dt = datetime.datetime.strptime(md['dt_cr'],"%Y-%m-%dT%H:%M:%S")
@@ -319,7 +321,7 @@ if __name__=='__main__':
                     j_unq_key = '-'.join([md['unq_key'],md['dt_cr'],j_creator])
                     
                     if j_unq_key in jattrs:
-                        print 'journal entry %s exists; updating'%j_unq_key
+                        print('journal entry %s exists; updating'%j_unq_key)
                         jentry = filter(lambda x: x['attrs'].get('unq_key')==j_unq_key ,t.journal)[0]
                         myei = t.journal.index(jentry)
 
@@ -346,7 +348,7 @@ if __name__=='__main__':
                             j_nw_cnt+=1
 
         #print threads
-        print '='*20
-        print nw_cnt,' added ;',rw_cnt,'rewritten ;',noop_cnt,'tasks unchanged' 
-        print j_nw_cnt,' journal entries added ;',j_rw_cnt,'journals rewritten ;',j_noop_cnt,'journals unchanged'
+        print('='*20)
+        print(nw_cnt,' added ;',rw_cnt,'rewritten ;',noop_cnt,'tasks unchanged') 
+        print(j_nw_cnt,' journal entries added ;',j_rw_cnt,'journals rewritten ;',j_noop_cnt,'journals unchanged')
 

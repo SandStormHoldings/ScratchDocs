@@ -2,6 +2,12 @@
 '''
 filedesc: default controller file
 '''
+from __future__ import print_function
+from past.builtins import cmp
+from builtins import zip
+from builtins import chr
+from builtins import str
+from builtins import range
 from noodles.http import Response
 
 import dateutil.parser
@@ -321,7 +327,7 @@ def prioritization(request,P,C):
         setall=False
     for fn in fields:
         if setall:
-            vset = locals()[fn].keys()
+            vset = list(locals()[fn].keys())
             if fn=='statuses':
                 for ds in cfg.DONESTATES:
                     if ds in vset: vset.remove(ds)
@@ -412,7 +418,7 @@ def task(request,P,C,task):
     cross_links_raw = get_cross_links(task)
     cross_links=[]
     dependencies=[]
-    for k,v in request.params.items():
+    for k,v in list(request.params.items()):
         if k.startswith('tag-'):
             tn = k.replace('tag-','')
             if tn=='new':
@@ -425,7 +431,7 @@ def task(request,P,C,task):
             if tn in ['new-url','new-anchor']:
                 continue #raise Exception('newlink')
             else:
-                links.append({'url':v,'anchor':unicode(tn,'utf-8')})
+                links.append({'url':v,'anchor':str(tn,'utf-8')})
         if k.startswith('informed-'):
             tn = k.replace('informed-','')
             if tn=='new': continue
@@ -506,7 +512,7 @@ def task(request,P,C,task):
                     'dependencies':dependencies,
                     'informed':informed,
                     'branches':branches}
-        print o_params
+        print(o_params)
         rewrite(P,C,tid,o_params,safe=False,user=adm,fetch_stamp=fstamp)
         t = get_task(tid)
         cross_links_raw = get_cross_links(tid)
@@ -534,7 +540,7 @@ def task(request,P,C,task):
             parent=None
         rt = add_task(P,C,parent=parent,params=o_params,tags=tags,user=adm)
         redir = '/'+URL_PREFIX+rt._id
-        print 'redircting to %s'%redir
+        print('redircting to %s'%redir)
         rd = Redirect(redir)
         return rd
     if task=='new':
@@ -545,7 +551,7 @@ def task(request,P,C,task):
         ch = get_children(C,task)
         sortmode = request.params.get('sortby','default')
         ch.sort(sortmodes[sortmode],reverse=True)
-        print('got',len(ch),'kids')
+        print(('got',len(ch),'kids'))
 
     if task=='new':
         t = Task(created_at=None,
@@ -573,7 +579,7 @@ def task(request,P,C,task):
         par = task ; parents=[]
         parents = task.split('/')
         opar = []
-        for i in xrange(len(parents)-1):
+        for i in range(len(parents)-1):
             opar.append('/'.join(parents[:i+1]))
     parents = [(pid,get_task(pid)['summary']) for pid in opar]
     prt = get_usernames(C)
@@ -662,7 +668,7 @@ def tags(request,P,C):
         fa = C.fetchall()
         for tr in fa:
             tags_pri[tr['name']]=tr['pri']
-    tags = tags.items()
+    tags = list(tags.items())
     
     tags.sort(lambda x1,x2: cmp(x1[1],x2[1]),reverse=True)
     rt = {'tags':tags,'pri':tags_pri}
@@ -711,9 +717,9 @@ def global_journal(request,P,C,creator=None,day=None,groupby=None,state=None):
             daya = datetime.datetime.strptime(day,'%Y-%m-%d').date()
             day = [daya,daya]
 
-    print 'obtaining journals'
+    print('obtaining journals')
     gaj = get_all_journals(C,day=day,creator=creator)
-    print 'obtained; reading %s journals'%len(gaj)
+    print('obtained; reading %s journals'%len(gaj))
     for jt in gaj:
         jtd = jt
         jt = get_task(jt['tid'])
@@ -728,9 +734,9 @@ def global_journal(request,P,C,creator=None,day=None,groupby=None,state=None):
         #print('appending entry',ji,'to list')
         ai+=ji
 
-    print 'finished reading. sorting'
+    print('finished reading. sorting')
     ai.sort(lambda x1,x2: cmp(x1['created_at'],x2['created_at']))
-    print 'sorted'
+    print('sorted')
     if groupby:
         rt={}
         for i in ai:
@@ -770,13 +776,13 @@ def metastate(request,P,C,state,tags=''):
     else:
         tids = res[1]
     rt = asgn(request,P,C,tids=tids)
-    rt['headline'] = '%s tasks %s belonging to state %s%s'%(len(tids),excl and 'exclusively' or '',",".join(res[0].keys()),(tags and ", having tags "+(",".join(tags)) or ""))
+    rt['headline'] = '%s tasks %s belonging to state %s%s'%(len(tids),excl and 'exclusively' or '',",".join(list(res[0].keys())),(tags and ", having tags "+(",".join(tags)) or ""))
     return rt
 
 @render_to('incoming.html')
 @db
 def incoming(request,P,C,tags=[],limit=300):
-    if type(tags) in [str,unicode]:
+    if type(tags) in [str,str]:
         tags = tags.split(",")
 
     adm = get_admin(request,'unknown')    
@@ -834,7 +840,7 @@ def time_tracking_dashboard(request,P,C,rangeback='7 day',persons=None,mode='pro
         C.execute("select unnest(tids) tid,sum(tracked),min(dt),max(dt) from tracking_by_day where %s group by unnest(tids) order by sum(tracked) desc"%cond)
         tids = C.fetchall()
         qry = "select tbd.*,tbd.dt::timestamp dtt,t.contents->>'status' status,t.contents->>'summary' summary from tracking_by_day tbd,tasks t where t.id=any(tbd.tids) and %s order by provider,dt asc,tbd.tracked asc"%cond
-        print qry
+        print(qry)
         C.execute(qry)
         tasks = C.fetchall()
     tasks_t = [{
@@ -857,7 +863,7 @@ def time_tracking_dashboard(request,P,C,rangeback='7 day',persons=None,mode='pro
     for p in providers:
         for d in dates:
             #print('going over provider, task',p,d)
-            tasks_p = filter(lambda x: x['taskName']==p and x['startDate_raw'].date()==d,tasks_t)
+            tasks_p = [x for x in tasks_t if x['taskName']==p and x['startDate_raw'].date()==d]
             inc=datetime.timedelta(0)
             for i in range(1,len(tasks_p)):
                 pt = tasks_p[i-1]
@@ -871,7 +877,7 @@ def time_tracking_dashboard(request,P,C,rangeback='7 day',persons=None,mode='pro
                     t['startDate']=t['startDate_raw'].isoformat()
                     t['endDate']=t['endDate_raw'].isoformat()
                 except KeyError:
-                    print(t,pt)
+                    print((t,pt))
                     raise
             tasks_rt+=tasks_p
             #print('len of tasks_rt, increased by',len(tasks_rt),len(tasks_p))
@@ -902,7 +908,7 @@ from gantt where \
 (we is not null and t is not null ) and ( (t_l>=now()-interval '2 weeks' or c_l>=now()-interval '2 weeks'))")
     #and created_at>=now()-interval '12 month'
     res = C.fetchall()
-    print(len(res),'initial tasks fetched')
+    print((len(res),'initial tasks fetched'))
 
     # retrieve missing parents?
     while True:
@@ -910,7 +916,7 @@ from gantt where \
                        r['parent_id'] and
                        r['parent_id'] not in dismissed and
                        r['parent_id'] not in [r2['tid'] for r2 in res]])
-        print('calculated',len(missing),'missing parents:',missing)
+        print(('calculated',len(missing),'missing parents:',missing))
 
         if not len(missing): break        
         #C.execute("select * from gantt where tid ANY %s",(list(missing),))
@@ -1020,7 +1026,7 @@ def queue(request,P,C,assignee=None,archive=False,metastate_group='merge'):
         if not relevant_metastates: continue
         #print 'reading journal'
         jitems = read_journal(t)
-        lupd = sorted(cm.values(),lambda x1,x2: cmp(x1['updated'],x2['updated']),reverse=True)
+        lupd = sorted(list(cm.values()),lambda x1,x2: cmp(x1['updated'],x2['updated']),reverse=True)
         if len(lupd): lupd=lupd[0]['updated']
         else: lupd=None
         #any journal update takes precedence
@@ -1033,7 +1039,7 @@ def queue(request,P,C,assignee=None,archive=False,metastate_group='merge'):
                 lupd = jlupd
         #assert t.get('total_hours')!='None'
         #print 'adding to queue'
-        queue[tid]={'states':dict([(cmk,cmv['value']) for cmk,cmv in cm.items()]),
+        queue[tid]={'states':dict([(cmk,cmv['value']) for cmk,cmv in list(cm.items())]),
                     #'total_hours':t.get('total_hours',0),
                     'fullstates':cm,
                     'last updated':lupd,
@@ -1045,13 +1051,13 @@ def queue(request,P,C,assignee=None,archive=False,metastate_group='merge'):
                     'merge':[l['url'] for l in t['links'] if l['anchor']=='merge doc'],
                     'job':[l['url'] for l in t['links'] if l['anchor']=='job'],
                     'specs':[l['url'] for l in t['links'] if l['anchor']=='specs']}
-    queue = queue.items()
+    queue = list(queue.items())
     queue.sort(lambda x1,x2: cmp(
         (x1[1]['last updated'] and datetime.datetime.strptime(x1[1]['last updated'].split('.')[0],'%Y-%m-%dT%H:%M:%S') or datetime.datetime(year=1970,day=1,month=1)),
         (x2[1]['last updated'] and datetime.datetime.strptime(x2[1]['last updated'].split('.')[0],'%Y-%m-%dT%H:%M:%S') or datetime.datetime(year=1970,day=1,month=1))),reverse=True)
 
 
-    metastate_url_prefix = dict (zip(cfg.METASTATE_URLS.values(),cfg.METASTATE_URLS.keys()))[metastate_group]
+    metastate_url_prefix = dict (list(zip(list(cfg.METASTATE_URLS.values()),list(cfg.METASTATE_URLS.keys()))))[metastate_group]
     #print('rendering')
     return basevars(request,P,C,{'queue':queue,
             'metastate_group':metastate_group,
@@ -1130,7 +1136,7 @@ def metastate_set(request,P,C):
     else:
         t =  get_task(tid)
 
-    print 'setting %s.%s = %s'%(tid,msk,v)
+    print('setting %s.%s = %s'%(tid,msk,v))
     append_journal_entry(P,C,t,adm,'',{msk:v})
     return {'status':'ok'}
 

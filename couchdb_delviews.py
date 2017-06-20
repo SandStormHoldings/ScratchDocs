@@ -1,3 +1,4 @@
+from __future__ import print_function
 import datetime
 from couchdbkit import *
 from couchdbkit.designer import push
@@ -15,9 +16,9 @@ sys.stdout = codecs.getwriter(locale.getpreferredencoding())(sys.stdout)
 initvars(cfg)
 
 from couchdb import *
-print 'ai'
+print('ai')
 if __name__=='__main__':
     s,d = init_conn()
     doc = Task.get('_design/task')
-    print doc
+    print(doc)
     #push_views(d)

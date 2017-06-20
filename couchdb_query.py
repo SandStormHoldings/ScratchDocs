@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 import datetime
 from couchdbkit import *
 from couchdbkit.designer import push
@@ -26,35 +27,35 @@ if __name__=='__main__':
     tid = sys.argv[1]
     
     t = get_task(tid)
-    print 'QUERIED TASK:'
-    print t._id,t.summary
+    print('QUERIED TASK:')
+    print(t._id,t.summary)
 
     tasks = get_children(tid)
 
-    print len(tasks),'CHILDREN'
+    print(len(tasks),'CHILDREN')
     for t in tasks: 
-        print t.path,t._id,t.summary,','.join(t.tags)
+        print(t.path,t._id,t.summary,','.join(t.tags))
 
     tasks = get_parents(tid)
-    print len(tasks),'PARENTS'
+    print(len(tasks),'PARENTS')
     for t in tasks:
-        print t.path,t._id,t.summary,','.join(t.tags)
+        print(t.path,t._id,t.summary,','.join(t.tags))
     #print 'done'
 
     if len(sys.argv)>2:
         tag = sys.argv[2]
         tasks = get_by_tag(tag)
-        print len(tasks),'BY TAG %s'%tag
-        for t in tasks: print t.path,t._id,t.summary,','.join(t.tags)
+        print(len(tasks),'BY TAG %s'%tag)
+        for t in tasks: print(t.path,t._id,t.summary,','.join(t.tags))
         
     if len(sys.argv)>3:
         rel = sys.argv[3]
         tasks = get_related(rel)
-        print len(tasks),'BY RELATED %s'%rel
-        for t in tasks: print t.path,t._id,t.summary,t.assignee
+        print(len(tasks),'BY RELATED %s'%rel)
+        for t in tasks: print(t.path,t._id,t.summary,t.assignee)
     if len(sys.argv)>4:
         st = sys.argv[4]
         tasks = get_by_status(st)
-        print len(tasks),'BY STATUS %s'%st
-        for t in tasks: print t.path,t._id,t.summary,t.status
+        print(len(tasks),'BY STATUS %s'%st)
+        for t in tasks: print(t.path,t._id,t.summary,t.status)
     

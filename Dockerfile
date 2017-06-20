@@ -1,9 +1,8 @@
 FROM bravissimolabs/alpine-git
-FROM frolvlad/alpine-python2
+FROM frolvlad/alpine-python3
 MAINTAINER Guy Romm <guy@sandstormholdings.com>
 
-RUN apk update && apk add python-dev musl-dev gcc py-mysqldb postgresql-dev
-COPY docker/py/supervisord.conf /etc/supervisord.conf
+RUN apk update && apk add musl-dev gcc postgresql-dev python3-dev
 
 WORKDIR /home/tasks
 ADD . /home/tasks

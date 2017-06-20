@@ -1,3 +1,5 @@
+from __future__ import print_function
+from builtins import object
 # reborrowed from https://github.com/monsur/jsoncompare
 import json
 import sys
@@ -31,7 +33,7 @@ class Diff(object):
           new_path = "%s.%s" % (path, key)
 
         if isinstance(second, dict):
-          if second.has_key(key):
+          if key in second:
             sec = second[key]
           else:
             #  there are key in the first, that is not presented in the second
@@ -82,7 +84,7 @@ def getContentFromFile(filePath):
 
 def getContent(location):
   content = None
-  if type(location) is types.DictType:
+  if type(location) is dict:
     return location
   content = getContentFromFile(location)
   if content is None:
@@ -111,6 +113,6 @@ if __name__ == '__main__':
   location2 = sys.argv[2]
   diffs = compare(location1, location2)
   if len(diffs) > 0:
-    print '\r\nFound differences comparing ' + location1 + ' and ' + location2
+    print('\r\nFound differences comparing ' + location1 + ' and ' + location2)
   for diff in diffs:
-    print diff['type'] + ': ' + diff['message']
+    print(diff['type'] + ': ' + diff['message'])

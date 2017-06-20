@@ -85,7 +85,7 @@ def get_map():
                    controller=tm[1].split('#')[0],
                    action=tm[1].split('#')[1])
     
-    for pf,gethours in {'/tr':True,'':False}.items():
+    for pf,gethours in list({'/tr':True,'':False}.items()):
         mp.connect(None,URL_PREFIX+'/assignments/{person}'+pf, controller='controllers',action='assignments',gethours=gethours)
         mp.connect(None,URL_PREFIX+'/created/{person}'+pf, controller='controllers',action='created',gethours=gethours),
         mp.connect(None,URL_PREFIX+'/informed/{person}'+pf, controller='controllers',action='informed',gethours=gethours),
@@ -94,7 +94,7 @@ def get_map():
         mp.connect(None,URL_PREFIX+'/latest'+pf, controller='controllers',action='latest',gethours=gethours),
         mp.connect(None,URL_PREFIX+'/latest/{max_days}'+pf, controller='controllers',action='latest',gethours=gethours)
         
-    for msabbr,msgroup in METASTATE_URLS.items():
+    for msabbr,msgroup in list(METASTATE_URLS.items()):
 
         def mcnt(msabbr,mp):
             url = URL_PREFIX+'/'+msabbr
