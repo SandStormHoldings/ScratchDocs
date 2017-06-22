@@ -8,8 +8,6 @@ import json
 import re
 import sys
 from collections import defaultdict
-import codecs
-sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 
 vers={}
 

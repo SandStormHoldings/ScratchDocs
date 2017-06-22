@@ -25,8 +25,9 @@ import subprocess
 import shlex
 from dulwich.repo import Repo as DRepo
 import gc
-
 from couchdb import *
+from pg import get_new_idx
+
 P = init_conn()
 
 def gantt_info_row(grow,excl=('status','created_at','summary','parent_id','tid')):
@@ -564,7 +565,7 @@ def add_task(P,C,parent=None,params={},force_id=None,tags=[],user=None,fetch_sta
         if force_id:
             newidx = force_id
         else:
-            newidx = get_new_idx(parent)
+            newidx = get_new_idx(C,parent)
     else:
         print('is a top level task')
         if force_id:
@@ -572,7 +573,7 @@ def add_task(P,C,parent=None,params={},force_id=None,tags=[],user=None,fetch_sta
             newidx = str(force_id)
         else:
             print('getting a new index')
-            newidx = get_new_idx()
+            newidx = get_new_idx(C)
     fullid = newidx
 
     if type(params)==dict:

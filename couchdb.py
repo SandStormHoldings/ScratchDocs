@@ -1,8 +1,5 @@
-from __future__ import print_function
 from builtins import str
 from builtins import range
-#!/usr/bin/env python
-#-coding=utf-8
 import notif
 import sys
 import re
@@ -23,6 +20,18 @@ class Task(object):
     changed_at = None
     changed_by = None
 
+    # def get(self,tid):
+    #     pass
+    
+    # emulating old style task objects
+    def __init__(self,**kwargs):
+        for k,v in kwargs.items(): setattr(self,k,v)
+            
+    def __getitem__(self, key):
+        if key==0: raise Exception('why am i being asked for 0?',self.__dict__)
+        #print("asked for",key,"got",self.__dict__)
+        return self.__dict__[key]
+            
     def save(self,P,C,user=None,notify=True,fetch_stamp=None):
         try:
             if self._id and user!='notify-trigger':
@@ -192,28 +201,7 @@ def get_related(rel):
 def get_by_status(st):
     return Task.view('task/status',key=st)
 
-def get_ids():
-    ids = Task.view('task/ids')
-    return [r['id'] for r in ids]
 
-def get_new_idx(par=''):
-    #print 'getting new idx %s'%par
-    par = str(par)
-    allids = get_ids()
-    agg={}
-    for tid in allids:
-        pth = tid.split('/')
-        val = pth[-1]
-        aggk = '/'.join([str(x) for x in pth[0:-1]])
-        if aggk not in agg: agg[aggk]=0
-        if int(agg[aggk])<int(val): agg[aggk]=val
-        if tid not in aggk: agg[tid]=0
-    #raise Exception(agg)
-    assert (not par) or (par in agg),"%s not in agg %s"%(par,list(agg.keys()))
-    # print 'returning %s + / + %s'%(par,int(agg[par])+1)
-    # print 'par = "%s" ; agg[par] = "%s"'%(par,agg[par])
-    rt= (par and str(par)+'/'or '')+str(int(agg.get(par,0))+1)
-    return rt
 
 def get_journals(day=None):
     if day:

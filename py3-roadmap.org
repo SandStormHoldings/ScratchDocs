@@ -1,0 +1,4 @@
+* TODO remove couchdbkit dependence
+** TODO find an alternative to couchdb revisions for diffs and notifications
+postgresql [[https://pgxn.org/dist/temporal_tables/][temporal tables]]
+* TODO replace couchdb views with pg equivalents

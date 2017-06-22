@@ -95,6 +95,16 @@ CREATE VIEW commits_by_tid AS
 
 
 --
+-- Name: cross_links; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW cross_links AS
+ SELECT tasks.id,
+    jsonb_array_elements_text((tasks.contents -> 'cross_links'::text)) AS clid
+   FROM tasks;
+
+
+--
 -- Name: ssm_tracking; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -365,7 +375,7 @@ CREATE VIEW tasks_pri AS
            FROM tasks t_1
         UNION
          SELECT tasks.id,
-            NULL::text
+            NULL::text AS text
            FROM tasks) t ON (((g.name)::text = t.tag)))
      LEFT JOIN ( SELECT tasks.id,
             (tasks.contents ->> 'summary'::text) AS summary,
@@ -642,11 +652,16 @@ SET search_path = public, pg_catalog;
 
 COPY tags (name, pri) FROM stdin;
 PRI_HIGH	50
-bug	0
-PRI_LOW	10
-critical	30
 PRI_MED	30
 priority	50
+bug	30
+critical	70
+techdebt	20
+PRI_LOW	-20
+eCogra	10
+operational	50
+jordan	100
+ops	100
 \.
 
 
@@ -677,7 +692,7 @@ SET search_path = public, pg_catalog;
 --
 
 COPY participants (username, name, email, active, skype, informed, perms) FROM stdin;
-default_user	\N	\N	t	\N	\N	\N
+default_user	\N	\N	t	\N	\N	{prioritization,karma,gantt}
 \.
 
 

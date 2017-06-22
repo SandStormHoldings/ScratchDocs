@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 '''
 filedesc: helper script to launch GameServer
 '''
@@ -17,5 +16,5 @@ import sys
 
 if __name__ == '__main__':
     bindhost = len(sys.argv)>1 and sys.argv[1] or '0.0.0.0'
-    #print('binding on %s'%str(bindhost))
+    print('binding on %s'%str(bindhost))
     startapp(host=bindhost)

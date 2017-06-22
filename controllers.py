@@ -9,7 +9,6 @@ from builtins import chr
 from builtins import str
 from builtins import range
 from noodles.http import Response
-
 import dateutil.parser
 from tasks import gso
 from config import STATUSES,RENDER_URL,DATADIR,URL_PREFIX,NOPUSH,NOCOMMIT,METASTATES,APP_DIR
@@ -18,12 +17,11 @@ from noodles.http import Redirect,BaseResponse,Response,ajax_response,Error403
 from webob import exc
 from noodles.templates import render_to
 from docs import initvars
-from pg import get_repos,get_usernames,hasperm,hasperm_db,get_participants,get_all_journals,get_children,get_journals
+from pg import get_repos,get_usernames,hasperm,hasperm_db,get_participants,get_all_journals,get_children,get_journals,get_cross_links,get_task
 import config as cfg
 initvars(cfg)
-from docs import cre,date_formats,parse_attrs,get_fns,get_parent_descriptions,get_task,rewrite,get_new_idx,add_task,get_parent,flush_taskfiles_cache,tasks_validate, get_karma, get_karma_receivers, deps_validate
+from docs import cre,date_formats,parse_attrs,get_fns,get_parent_descriptions,rewrite,get_new_idx,add_task,get_parent,flush_taskfiles_cache,tasks_validate, get_karma, get_karma_receivers, deps_validate
 from docs import loadmeta,org_render,parsegitdate,read_current_metastates,read_journal,render_journal_content,append_journal_entry,get_tags,Task,get_latest,metastates_agg,metastates_qry,P, gantt_info,gantt_info_row
-from couchdb import get_cross_links
 import codecs
 import copy
 import datetime
@@ -33,7 +31,7 @@ import re
 import redis
 import json
 import humanize
-from functools import partial
+from functools import partial,reduce,cmp_to_key
 
 
 def db(function):
@@ -57,7 +55,9 @@ def basevars(request,P,C,ext):
         perms = []
 
     rt = {'user':u,
-          'hasperm':partial(hasperm,perms)}
+          'hasperm':partial(hasperm,perms),
+          'upr':''
+    }
     rt2 = rt.copy()
     rt2.update(ext)
     return rt2
@@ -415,7 +415,7 @@ def task(request,P,C,task):
     usernames = get_usernames(C)
 
     tags=[] ; links=[] ; informed=[] ; branches=[] ;
-    cross_links_raw = get_cross_links(task)
+    cross_links_raw = get_cross_links(C,task)
     cross_links=[]
     dependencies=[]
     for k,v in list(request.params.items()):
@@ -452,7 +452,7 @@ def task(request,P,C,task):
     ndl = request.params.get('add-dependency')
 
     if task and task!='new':
-        karma = getattr(get_task(task),'karma',{})
+        karma = getattr(get_task(C,task),'karma',{})
     else:
         karma = {}
 
@@ -550,7 +550,7 @@ def task(request,P,C,task):
         #print('getting children')
         ch = get_children(C,task)
         sortmode = request.params.get('sortby','default')
-        ch.sort(sortmodes[sortmode],reverse=True)
+        ch.sort(key=cmp_to_key(sortmodes[sortmode]),reverse=True)
         print(('got',len(ch),'kids'))
 
     if task=='new':
@@ -563,6 +563,7 @@ def task(request,P,C,task):
                  tags=[],
                  links=[],
                  branches=[],
+                 karma={},
                  journal=[])
         opar=[]
         gantt_labels={} ; gantt={}
@@ -575,13 +576,13 @@ def task(request,P,C,task):
             changed_at = fo['changed_at']
         else:
             changed_at = None
-        t = get_task(task)
+        t = get_task(C,task)
         par = task ; parents=[]
         parents = task.split('/')
         opar = []
         for i in range(len(parents)-1):
             opar.append('/'.join(parents[:i+1]))
-    parents = [(pid,get_task(pid)['summary']) for pid in opar]
+    parents = [(pid,get_task(C,pid)['summary']) for pid in opar]
     prt = get_usernames(C)
     metastates,content = read_current_metastates(t,True)
     zerodelta = datetime.timedelta(seconds=0)
@@ -591,7 +592,7 @@ def task(request,P,C,task):
         remaining_hours=zerodelta
     #journal
     jitems = t.journal
-    dependencies = 'dependencies' in t and t.dependencies or []
+    dependencies = getattr(t,'dependencies',[])
     branchtargets=[(re.compile("pre"),"preproduction"),
                    (re.compile("prod"),"production"),
                    (re.compile(".*"),"staging")]
@@ -655,6 +656,7 @@ def task(request,P,C,task):
                                  'under':under,
                                  'humanize':humanize,
                                  'now':now,
+                                 'reduce':reduce,
     })
 
 @render_to('tags.html')
@@ -1143,7 +1145,7 @@ def metastate_set(request,P,C):
 def favicon(request):
     response = BaseResponse()
     response.headerlist=[('Content-Type', 'image/x-icon')]
-    f = open(os.path.join(APP_DIR,'favicon.ico')).read()
+    f = open(os.path.join(APP_DIR,'favicon.ico'),'rb').read()
     response.body = f
     return response
 
@@ -1163,7 +1165,7 @@ def assets(request, r_type=None, r_file=None):
 
     try:
         response = BaseResponse()
-        f = open(fname).read()
+        f = open(fname,'rb').read()
         response.headerlist=[('Content-Type', map[r_type])]
         response.body = f
         return response

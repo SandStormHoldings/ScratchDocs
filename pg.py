@@ -8,7 +8,7 @@ from config import PG_DSN,DONESTATES
 from gevent import sleep
 
 # migration stuff
-import json
+import json,re
 from datetime import datetime,date
 
 import decimal
@@ -140,10 +140,6 @@ def migrate_one(t,pgc,fetch_stamp=None,user=None):
     tid = t._id
     parid = "/".join(tid.split("/")[0:-1])
     if not parid: parid=None
-    for dn in ['_doc','_dynamic_properties']:
-        for k in t.__dict__[dn]:
-            assert k not in td or td[k]==t.__dict__['_doc'][k] ,"%s already exists with value %s (!= %s from %s) for %s"%(k,td[k],t.__dict__[dn][k],dn,t._id)
-            td[k]=t.__dict__[dn][k]
 
     for k in t.__dict__:
         if k not in ['_dynamic_properties','_doc']:
@@ -161,8 +157,8 @@ def migrate_one(t,pgc,fetch_stamp=None,user=None):
         chat=datetime.now() ; chatf='now'
         suser = user
     else:
-        excont = res['contents'] ; del excont['_rev']
-        nwcont = json.loads(tdj) ; del nwcont['_rev']
+        excont = res['contents']
+        nwcont = json.loads(tdj)
         
         # exf = open('/tmp/ex.json','w') ; exf.write(json.dumps(excont)) ; exf.close()
         # nwf = open('/tmp/nw.json','w') ; nwf.write(json.dumps(nwcont)) ; nwf.close()
@@ -253,7 +249,40 @@ def get_children(C,tid):
     rows = [t['contents'] for t in C.fetchall()]
     rt=[]
     for r in rows:
-        r['created_at']=datetime.strptime( r['created_at'], "%Y-%m-%dT%H:%M:%SZ" )
-        t = Task(r)
+        r['created_at']=datetime.strptime( r['created_at'].split('.')[0], "%Y-%m-%dT%H:%M:%S" )
+        t = Task(**r)
         rt.append(t)
     return rt
+
+def get_cross_links(C,tid):
+    C.execute("select clid from cross_links where id=%s",(tid,))
+    rt = C.fetchall()
+    return [r['clid'] for r in rt]
+
+def get_new_idx(C,parent=None):
+    if parent==None:
+        qry = "select max((regexp_split_to_array(id,'/'))[1]::integer)+1 new_idx from tasks"
+        conds=()
+    else:
+        pars = str(parent).split("/")
+        parlen=len(pars)+1
+        like=str(parent)+'/%'
+        qry = "select max((regexp_split_to_array(id,'/'))["+str(parlen)+"]::integer)+1 new_idx from tasks where id like %s"
+        conds=(like,)
+    print('QUERYING',qry,conds)
+    C.execute(qry,conds)
+    nid = C.fetchall()[0]['new_idx']
+    if nid==None:
+        nid='1'
+    if parent:
+        nid=str(parent)+'/'+str(nid)
+    rt= nid
+    #if parent: raise Exception(parent,nid,'=>',rt)
+    assert re.compile('^([0-9]+)([0-9\/]*)$').search(rt),"%s does not match"%rt
+    return rt
+
+def get_task(C,tid):
+    from couchdb import Task
+    C.execute("select contents from tasks where id=%s",(tid,))
+    c = C.fetchall()[0]['contents']
+    return Task(**c)

@@ -6,7 +6,6 @@ import logging
 
 import config as cfg
 from docs import initvars
-import config as cfg
 import subprocess
 initvars(cfg)
 from subprocess import getstatusoutput as gso

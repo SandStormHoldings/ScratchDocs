@@ -249,11 +249,12 @@ ${taskmenu()}
   		                 if k2 not in rdarr: rdarr[k2]=0
   		                 rdarr[k2]+=el[1][k][k2]
 		         return rdarr
-		     karmaflat = reduce(flatten,getattr(task,'karma',{}).items(),{}) %>
+		     karma = getattr(task,'karma',{})
+		     karmaflat = reduce(flatten,karma.items(),{}) %>
 		  <div class="controls">
 		    % if hasattr(task,'karma'):
 		    <ul class="unstyled">
-		      % for kpart,kval in sorted(karmaflat.items(),lambda x,y: cmp(x[1],y[1]),reverse=True):
+		      % for kpart,kval in sorted(karmaflat.items(),key=1,reverse=True):
 		      <li>${kpart}: ${kval}</li>
 		      % endfor
 		    </ul>
