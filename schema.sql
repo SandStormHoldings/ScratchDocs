@@ -356,6 +356,7 @@ CREATE VIEW tasks_pri AS
     td.asgn,
     td.hby,
     tr.tracked,
+    tc.last_on AS last_commit,
     tc.ladds,
     count(*) AS cnt
    FROM ((((tags g
@@ -374,16 +375,15 @@ CREATE VIEW tasks_pri AS
             (tasks.contents ->> 'handled_by'::text) AS hby
            FROM tasks) td ON (((td.id)::text = (t.id)::text)))
      LEFT JOIN ( SELECT tracking_by_tid.tid,
-            sum(tracking_by_tid.tracked) AS tracked
+            max(tracking_by_tid.last_on) AS tracked
            FROM tracking_by_tid
-          WHERE ((tracking_by_tid.first_on >= (now() - '3 days'::interval)) OR (tracking_by_tid.last_on >= (now() - '3 days'::interval)))
           GROUP BY tracking_by_tid.tid) tr ON ((tr.tid = (t.id)::text)))
      LEFT JOIN ( SELECT commits_by_tid.tid,
+            max(commits_by_tid.last_on) AS last_on,
             sum(commits_by_tid.ladds) AS ladds
            FROM commits_by_tid
-          WHERE ((commits_by_tid.first_on >= (now() - '3 days'::interval)) OR (commits_by_tid.last_on >= (now() - '3 days'::interval)))
           GROUP BY commits_by_tid.tid) tc ON ((tc.tid = (t.id)::text)))
-  GROUP BY t.id, td.id, td.summary, td.crat, td.st, td.asgn, td.hby, tr.tracked, tc.ladds
+  GROUP BY t.id, td.id, td.summary, td.crat, td.st, td.asgn, td.hby, tr.tracked, tc.ladds, tc.last_on
   ORDER BY (sum(COALESCE(g.pri, 0))) DESC;
 
 
@@ -392,12 +392,12 @@ CREATE VIEW tasks_pri AS
 --
 
 CREATE VIEW tasks_pri_accum AS
- SELECT h.tid,
+ SELECT h.depid AS tid,
     (sum(p.tot_pri) + (sum(h.level))::numeric) AS tot_pri,
     array_agg(h.depid) AS depids
    FROM (tasks_deps_hierarchy h
-     LEFT JOIN tasks_pri p ON (((p.id)::text = h.depid)))
-  GROUP BY h.tid;
+     LEFT JOIN tasks_pri p ON (((p.id)::text = (h.tid)::text)))
+  GROUP BY h.depid;
 
 
 --
@@ -414,12 +414,13 @@ CREATE VIEW tasks_pri_comb AS
     p.asgn,
     p.hby,
     p.tracked,
+    p.last_commit,
     p.ladds,
     p.cnt,
     COALESCE(a.tot_pri, (0)::numeric) AS dep_pri,
     ((COALESCE(p.tot_pri, (0)::bigint))::numeric + COALESCE(a.tot_pri, (0)::numeric)) AS comb_pri
    FROM (tasks_pri p
-     LEFT JOIN tasks_pri_accum a ON (((p.id)::text = (a.tid)::text)))
+     LEFT JOIN tasks_pri_accum a ON (((p.id)::text = a.tid)))
   ORDER BY ((COALESCE(p.tot_pri, (0)::bigint))::numeric + COALESCE(a.tot_pri, (0)::numeric)) DESC;
 
 
