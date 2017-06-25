@@ -144,11 +144,11 @@ def asgn(request,
     in_tasks = get_fns(C,assignee=person,created=created,handled_by=handled_by,informed=informed,recurse=recurse,query=query,tag=tag,newer_than=newer_than,tids=tids,recent=recent)
     tasks={}
     #print 'got initial ',len(in_tasks),' tasks; cycling'
-    for t in in_tasks:
+    for td in in_tasks:
+        t = Task(**td['contents'])
         tlp = get_parent(t._id,tl=True)
         assert hasattr(t,'status'),"%s with no status"%t._id
-        st = t['status']
-        #print 'st of %s setting to status of tlp %s: %s'%(t._id,tlp,st) 
+        st = t.status
         if st not in tasks: tasks[st]=[]
 
         showtask=False
@@ -160,7 +160,7 @@ def asgn(request,
     sortmode = request.params.get('sortby','default')
 
     for st in tasks:
-        tasks[st].sort(sortmodes[sortmode],reverse=True)
+        tasks[st].sort(key=cmp_to_key(sortmodes[sortmode]),reverse=True)
     return basevars(request,P,C,{'tasks':tasks,'statuses':STATUSES,'request':request,'gethours':gethours})
 
 @render_to('iteration.html')
@@ -496,7 +496,7 @@ def task(request,P,C,task):
     assignees=[request.params.get('assignee')]
 
     if request.params.get('id') and request.params.get('id')!='None':
-        t = get_task(request.params.get('id'))
+        t = get_task(C,request.params.get('id'))
         assignees.append(t.assignee)
         tid = request.params.get('id')
         o_params = {'summary':request.params.get('summary'),
@@ -514,10 +514,10 @@ def task(request,P,C,task):
                     'branches':branches}
         print(o_params)
         rewrite(P,C,tid,o_params,safe=False,user=adm,fetch_stamp=fstamp)
-        t = get_task(tid)
-        cross_links_raw = get_cross_links(tid)
+        t = get_task(C,tid)
+        cross_links_raw = get_cross_links(C,tid)
         if request.params.get('content-journal'):
-            tj = get_task(task)
+            tj = get_task(C,task)
             metastates={}
             append_journal_entry(P,C,tj,adm,request.params.get('content-journal'),metastates)
         assert request.params.get('id')
@@ -629,7 +629,7 @@ def task(request,P,C,task):
                                  'gantt_labels':gantt_labels,
                                  'zerodelta':zerodelta,
                                  'branches_by_target':btgts,
-                                 'get_task':get_task,
+                                 'get_task':partial(get_task,C),
                                  'cross_links':cross_links_raw,
                                  'dependencies':dependencies,
                                  'fulldeps':fulldeps,
@@ -724,7 +724,7 @@ def global_journal(request,P,C,creator=None,day=None,groupby=None,state=None):
     print('obtained; reading %s journals'%len(gaj))
     for jt in gaj:
         jtd = jt
-        jt = get_task(jt['tid'])
+        jt = get_task(C,jt['tid'])
         ji = [jtd]
         if creator: ji = [i for i in ji if i['creator']==creator]
         if state: 
@@ -797,7 +797,7 @@ def incoming(request,P,C,tags=[],limit=300):
                              'user':adm,
                              'tags':tags,
                              'newer_than':newer_than,
-                             'get_task':get_task
+                             'get_task':partial(get_task,C)
     })
 
 @ajax_response
@@ -809,11 +809,11 @@ def gantt_save(request,P,C):
         C.execute("select * from gantt where tid in %(items)s",{'items':tuple([d['id'] for d in o['data']])})
         gts = C.fetchall()
     for g in gts:
-        t = Task.get(g['tid'])
+        t = Task.get(C,g['tid'])
         t['gantt_links']=[]
         t.save()
     for l in o['links']:
-        s = Task.get(l['source'])
+        s = Task.get(C,l['source'])
         if 'gantt_links' not in s: s['gantt_links']=[]
         s['gantt_links'].append(l)
         s.save()
@@ -962,7 +962,7 @@ from gantt where \
         }
         #if parent_id in dismissed: raise Exception(apnd)
         tasks.append(apnd)
-        ct = Task.get(tid)
+        ct = Task.get(C,tid)
         if 'gantt_links' in ct:
             for tl in ct['gantt_links']:
                 links.append(tl)
@@ -1072,13 +1072,14 @@ def queue(request,P,C,assignee=None,archive=False,metastate_group='merge'):
 @render_to('journal.html')
 @db
 def journal(request,P,C,task):
-    t = get_task(task)
+    t = get_task(C,task)
     jitems = read_journal(t)
     return basevars(request,P,C,{'task':t,'j':{'%s existing entries'%t._id:jitems},'metastates':METASTATES})
 
 @render_to('task_history.html')
+@db
 def history(request,task):
-    t = get_task(task)
+    t = get_task(C,task)
     st,op = gso('git log --follow -- %s'%(os.path.join(cfg.DATADIR,task,'task.org'))) ; assert st==0
     commitsi = cre.finditer(op)
     for c in commitsi:
@@ -1132,11 +1133,11 @@ def metastate_set(request,P,C):
     adm = get_admin(request,'unknown')
     #special case
     if msk=='work estimate':
-        t = get_task(tid)
+        t = get_task(C,tid)
         #print '%s = %s + %s'%(msk,t['total_hours'],v)
         #v = "%4.2f"%(float(t.get('total_hours',0))+float(v))
     else:
-        t =  get_task(tid)
+        t =  get_task(C,tid)
 
     print('setting %s.%s = %s'%(tid,msk,v))
     append_journal_entry(P,C,t,adm,'',{msk:v})

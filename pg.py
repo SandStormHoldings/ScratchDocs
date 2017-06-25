@@ -269,14 +269,14 @@ def get_new_idx(C,parent=None):
         like=str(parent)+'/%'
         qry = "select max((regexp_split_to_array(id,'/'))["+str(parlen)+"]::integer)+1 new_idx from tasks where id like %s"
         conds=(like,)
-    print('QUERYING',qry,conds)
+    #print('QUERYING',qry,conds)
     C.execute(qry,conds)
     nid = C.fetchall()[0]['new_idx']
     if nid==None:
         nid='1'
     if parent:
         nid=str(parent)+'/'+str(nid)
-    rt= nid
+    rt= str(nid)
     #if parent: raise Exception(parent,nid,'=>',rt)
     assert re.compile('^([0-9]+)([0-9\/]*)$').search(rt),"%s does not match"%rt
     return rt

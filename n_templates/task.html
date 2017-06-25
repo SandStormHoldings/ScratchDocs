@@ -372,7 +372,7 @@ for tgt,branches in branches_by_target.items():
                             <div class="message">
                                 <span class="message-author"><a href="${upr}/assignments/${ji['creator']}">${ji['creator']}</a></span>
                                 <span> | </span>
-                                <span class="message-datetime">${humanize.naturaltime(now-ji['created_at'])}</span>
+                                <span class="message-datetime">${ji['created_at']}</span>
                                 % if not 'unq_key' in ji['attrs'].keys() and ji['attrs'].items():
                                 <div class="message-status">
                                     <b>changed status: </b>

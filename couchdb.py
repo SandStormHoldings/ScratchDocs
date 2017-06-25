@@ -24,6 +24,12 @@ class Task(object):
     #     pass
     
     # emulating old style task objects
+    @staticmethod
+    def get(C,tid):
+        qry = "select * from tasks where id=%s"
+        C.execute(qry,(tid,))
+        row = C.fetchall()[0]['contents']
+        return Task(**row)
     def __init__(self,**kwargs):
         for k,v in kwargs.items(): setattr(self,k,v)
             
@@ -130,11 +136,11 @@ class Task(object):
         notif = {'notified_at':datetime.datetime.now(),
                  'user':user,
                  'informed':rcpts}
-        ts = Task.get(self._id)
-        if not hasattr(ts,'notifications'): ts.notifications={}
-        ts.notifications[rev]=notif
-        print('saving notification')
         with P as p:
+            ts = Task.get(self._id)
+            if not hasattr(ts,'notifications'): ts.notifications={}
+            ts.notifications[rev]=notif
+            print('saving notification')
             C = p.cursor()
             ts.save(P,C,user='notify-trigger',notify=False)
         print('done')
@@ -169,9 +175,9 @@ def as_python_object(dct):
 def get_all():
     return Task.view('task/all')
 
-def get_task(tid):
+def get_task(C,tid):
     #print "have been given task %s to obtain"%tid
-    rt= Task.get(tid)
+    rt= Task.get(C=C,tid=tid)
     return rt
 
 def get_cross_links(tid):

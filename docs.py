@@ -342,7 +342,7 @@ def get_fns(C,assignee=None,created=None,handled_by=None,informed=None,status=No
         raise NotImplementedError('recent not impl')
     if not recurse:
         cnd+= ' and parent_id is null'
-
+    print('QUERYING',qry+cnd,conds)
     C.execute(qry+cnd,conds)
     its = C.fetchall()
     return its
@@ -936,7 +936,7 @@ def parsegitdate(s):
                            second=int(ss))
     return dt
 
-def assign_commits():
+def assign_commits(C):
     exc = json.load(open(commitsfn,'r'))
     metas={}
     print('going over commits.')
@@ -949,7 +949,7 @@ def assign_commits():
         if not ci['t']: continue
 
         repo,cid = ck.split('/')
-        t = get_task(ci['t'],exc=False)
+        t = get_task(C,ci['t'],exc=False)
         
         if not t: 
             strans = get_story_trans()
@@ -957,7 +957,7 @@ def assign_commits():
                 print('translating %s => %s'%(ci['t'],strans[ci['t']]))
                 if strans[ci['t']]=='None':
                     continue
-                t = get_task(strans[ci['t']])
+                t = get_task(C,strans[ci['t']])
             else:
                 print('could not find task %s, which was referenced in %s: %s'%(ci['t'],ck,ci))
                 continue
@@ -999,13 +999,13 @@ def assign_commits():
         savemeta(fn,m)
     print('%s metas touched.'%(len(metas)))
 
-def tasks_validate(tasks=None,catch=True,amend=False,checkhours=True,checkreponames=True):
+def tasks_validate(C,tasks=None,catch=True,amend=False,checkhours=True,checkreponames=True):
     cnt=0 ; failed=0
     tasks = [t for t in tasks if t!=None]
     p = get_participants(cfg.DATADIR,disabled=True)
     firstbad=None
     if tasks:
-        tfs = [get_task(taskid)['path'] for taskid in tasks]
+        tfs = [get_task(C,taskid)['path'] for taskid in tasks]
     else:
         tfs = get_fns(C)
     for tf in tfs:
@@ -1072,14 +1072,14 @@ def tasks_validate(tasks=None,catch=True,amend=False,checkhours=True,checkrepona
     print('%s tasks in all; %s failed; firstbad=%s'%(cnt,failed,firstbad))
     return failed
 
-def addlink(tsaves,tid,r):
-    if tid not in tsaves: tsaves[tid]=get_task(tid)
+def addlink(C,tsaves,tid,r):
+    if tid not in tsaves: tsaves[tid]=get_task(C,tid)
     assert r>tid,"%s>%s ?"%(r,tid)
     t = tsaves[tid]
     if 'cross_links' not in t:
         t.cross_links=[]
     if r not in t.cross_links:
-        tcheck = get_task(r)
+        tcheck = get_task(C,r)
         print('task.%s -> +%s'%(t._id,r))
         t.cross_links.append(r)
         return True
@@ -1115,7 +1115,6 @@ def get_karma(date,user):
     return [k for k in Task.view('task/karma',key=[date,user])]
 
 def deps_validate(C,tsaves,tid,deps):
-    from couchdbkit.exceptions import ResourceNotFound    
     print(('deps_validate',tid,deps))
     t = tsaves[tid]
 
@@ -1150,7 +1149,7 @@ def deps_validate(C,tsaves,tid,deps):
 
 def rewrite(P,C,tid,o_params={},safe=True,user=None,fetch_stamp=None):
     tsaves={} #this dict contains all couchdb task objects we're working with
-    tsaves[tid] = get_task(tid)
+    tsaves[tid] = get_task(C,tid)
     assert tid
     #print 'working %s'%tid
     clinks = list(set(o_params['cross_links']))
@@ -1180,7 +1179,7 @@ def rewrite(P,C,tid,o_params={},safe=True,user=None,fetch_stamp=None):
 #              'creator':t['creator'], # DO NOT TOUCH CREATOR!
               'tags':t['tags'],
               'assignee':t['assignee'],
-              'dependencies':'dependencies' in t and list(t.dependencies) or [],
+              'dependencies':hasattr(t,'dependencies') and t.dependencies or [],
               #'points':t.get('points','?'),
               'informed':hasattr(t,'informed') and t.informed or [],
               'links':t.links,
@@ -1430,11 +1429,11 @@ if __name__=='__main__':
         if args.imp:
             imp_commits(args)
         if args.assign:
-            assign_commits()
+            assign_commits(C)
     if args.command=='makedemo':
         make_demo(tree=args.tree,orgmode=args.orgmode)
     if args.command=='validate':
-        tasks_validate(args.tasks,catch=not args.nocatch,amend=args.amend,checkhours = not args.nocheckhours)
+        tasks_validate(C,args.tasks,catch=not args.nocatch,amend=args.amend,checkhours = not args.nocheckhours)
     if args.command=='commit':
         prevdir = os.getcwd()
         os.chdir(cfg.DATADIR)
