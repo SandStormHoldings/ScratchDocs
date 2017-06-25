@@ -166,6 +166,8 @@ def parse_diff(jps,o1,o2,maxlen):
         #initial appending of cross links
         elif path=='/cross_links' and op=='add':
             lchange='cross_links=%s'%','.join(value)
+        elif path=='/dependencies' and op=='add':
+            lchange='dependencies=%s'%','.join(value)
 
         #removal
         elif lstre.search(path) and op=='remove':
