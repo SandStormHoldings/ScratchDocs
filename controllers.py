@@ -17,11 +17,11 @@ from noodles.http import Redirect,BaseResponse,Response,ajax_response,Error403
 from webob import exc
 from noodles.templates import render_to
 from docs import initvars
-from pg import get_repos,get_usernames,hasperm,hasperm_db,get_participants,get_all_journals,get_children,get_journals,get_cross_links,get_task
+from pg import get_repos,get_usernames,hasperm,hasperm_db,get_participants,get_all_journals,get_children,get_journals,get_cross_links,get_task,get_tags
 import config as cfg
 initvars(cfg)
 from docs import cre,date_formats,parse_attrs,get_fns,get_parent_descriptions,rewrite,get_new_idx,add_task,get_parent,flush_taskfiles_cache,tasks_validate, get_karma, get_karma_receivers, deps_validate
-from docs import loadmeta,org_render,parsegitdate,read_current_metastates,read_journal,render_journal_content,append_journal_entry,get_tags,Task,get_latest,metastates_agg,metastates_qry,P, gantt_info,gantt_info_row
+from docs import loadmeta,org_render,parsegitdate,read_current_metastates,read_journal,render_journal_content,append_journal_entry,Task,get_latest,metastates_agg,metastates_qry,P, gantt_info,gantt_info_row
 import codecs
 import copy
 import datetime
@@ -56,7 +56,8 @@ def basevars(request,P,C,ext):
 
     rt = {'user':u,
           'hasperm':partial(hasperm,perms),
-          'upr':''
+          'upr':'',
+          'C':C,
     }
     rt2 = rt.copy()
     rt2.update(ext)
@@ -82,7 +83,7 @@ def srt(t1,t2):
 def srt_crat(t1,t2): return cmp(t1['created_at'],t2['created_at'])
 sortmodes={'default':srt,
            'created':srt_crat,
-           'id':lambda x,y: cmp(x['id'],y['id']),
+           'id':lambda x,y: cmp(x['_id'],y['_id']),
            'assignee':lambda x,y: cmp(x['assignee'],y['assignee']),
            'summary':lambda x,y: cmp(x['summary'].lower(),y['summary'].lower()),
            'status':lambda x,y: cmp(x['status'],y['status']),
@@ -146,6 +147,7 @@ def asgn(request,
     #print 'got initial ',len(in_tasks),' tasks; cycling'
     for td in in_tasks:
         t = Task(**td['contents'])
+        t.pri = td['comb_pri']
         tlp = get_parent(t._id,tl=True)
         assert hasattr(t,'status'),"%s with no status"%t._id
         st = t.status
@@ -431,7 +433,7 @@ def task(request,P,C,task):
             if tn in ['new-url','new-anchor']:
                 continue #raise Exception('newlink')
             else:
-                links.append({'url':v,'anchor':str(tn,'utf-8')})
+                links.append({'url':v,'anchor':tn})
         if k.startswith('informed-'):
             tn = k.replace('informed-','')
             if tn=='new': continue
@@ -662,7 +664,7 @@ def task(request,P,C,task):
 @render_to('tags.html')
 @db
 def tags(request,P,C):
-    tags = get_tags()
+    tags = get_tags(C)
     tags_pri={}
     with P as p:
         C = p.cursor()
@@ -672,7 +674,7 @@ def tags(request,P,C):
             tags_pri[tr['name']]=tr['pri']
     tags = list(tags.items())
     
-    tags.sort(lambda x1,x2: cmp(x1[1],x2[1]),reverse=True)
+    tags.sort(key=lambda x:x[1],reverse=True)
     rt = {'tags':tags,'pri':tags_pri}
 
     return basevars(request,P,C,rt)
@@ -737,7 +739,7 @@ def global_journal(request,P,C,creator=None,day=None,groupby=None,state=None):
         ai+=ji
 
     print('finished reading. sorting')
-    ai.sort(lambda x1,x2: cmp(x1['created_at'],x2['created_at']))
+    ai.sort(key=lambda x:x['created_at'])
     print('sorted')
     if groupby:
         rt={}
@@ -788,8 +790,8 @@ def incoming(request,P,C,tags=[],limit=300):
         tags = tags.split(",")
 
     adm = get_admin(request,'unknown')    
-    newer_than = (datetime.datetime.now()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
-    t = get_latest(tags=tags,newer_than=newer_than,limit=limit)
+    newer_than = (datetime.datetime.now()-datetime.timedelta(days=14)).strftime('%Y-%m-%dT%H:%M:%S')
+    t = get_latest(C,tags=tags,newer_than=newer_than,limit=limit)
     return basevars(request,P,C,{'tasks':t,
                              'now':datetime.datetime.now(),
                              'humanize':humanize,
@@ -854,7 +856,7 @@ def time_tracking_dashboard(request,P,C,rangeback='7 day',persons=None,mode='pro
         'tracked':"%4.2f"%(float(t['tracked'].seconds)/60/60),
                 'taskName':t['provider'], #",".join(t['tids']),
                 'descr':",".join(t['tids']),
-        'summary':t['summary'].decode('latin-1'),
+        'summary':t['summary'],
                 'status':t['status']} for t in tasks]
 
     dates = set([t['startDate_raw'].date() for t in tasks_t])
@@ -963,9 +965,11 @@ from gantt where \
         #if parent_id in dismissed: raise Exception(apnd)
         tasks.append(apnd)
         ct = Task.get(C,tid)
-        if 'gantt_links' in ct:
+        try:
             for tl in ct['gantt_links']:
                 links.append(tl)
+        except KeyError as e:
+            pass
     
     return basevars(request,P,C,{'tasks':json.dumps({'data':tasks,
                                                  'links':links
@@ -1028,7 +1032,7 @@ def queue(request,P,C,assignee=None,archive=False,metastate_group='merge'):
         if not relevant_metastates: continue
         #print 'reading journal'
         jitems = read_journal(t)
-        lupd = sorted(list(cm.values()),lambda x1,x2: cmp(x1['updated'],x2['updated']),reverse=True)
+        lupd = sorted(list(cm.values()),key=lambda x:x['updated'],reverse=True)
         if len(lupd): lupd=lupd[0]['updated']
         else: lupd=None
         #any journal update takes precedence
@@ -1054,9 +1058,11 @@ def queue(request,P,C,assignee=None,archive=False,metastate_group='merge'):
                     'job':[l['url'] for l in t['links'] if l['anchor']=='job'],
                     'specs':[l['url'] for l in t['links'] if l['anchor']=='specs']}
     queue = list(queue.items())
-    queue.sort(lambda x1,x2: cmp(
-        (x1[1]['last updated'] and datetime.datetime.strptime(x1[1]['last updated'].split('.')[0],'%Y-%m-%dT%H:%M:%S') or datetime.datetime(year=1970,day=1,month=1)),
-        (x2[1]['last updated'] and datetime.datetime.strptime(x2[1]['last updated'].split('.')[0],'%Y-%m-%dT%H:%M:%S') or datetime.datetime(year=1970,day=1,month=1))),reverse=True)
+    qsort = cmp_to_key(
+        lambda x1,x2: 
+        cmp((x1[1]['last updated'] and datetime.datetime.strptime(x1[1]['last updated'].split('.')[0],'%Y-%m-%dT%H:%M:%S') or datetime.datetime(year=1970,day=1,month=1)),
+        (x2[1]['last updated'] and datetime.datetime.strptime(x2[1]['last updated'].split('.')[0],'%Y-%m-%dT%H:%M:%S') or datetime.datetime(year=1970,day=1,month=1))))
+    queue.sort(key=qsort,reverse=True)
 
 
     metastate_url_prefix = dict (list(zip(list(cfg.METASTATE_URLS.values()),list(cfg.METASTATE_URLS.keys()))))[metastate_group]

@@ -1,6 +1,6 @@
 <%inherit file="/base.html" />
 <%def name="edisp(e)">
-<% parts = re.compile('^(.*) <(.*)>$').search(e) %>
+<% parts = e and re.compile('^(.*) <(.*)>$').search(e) or False %>
 % if parts:
 <a href="mailto:${parts.group(2)}">${parts.group(1)}</a>
 % else:

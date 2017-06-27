@@ -230,7 +230,7 @@ def get_all_journals(C,day=None,creator=None):
 
     jes = C.fetchall()
     return [{'creator':je['creator'],
-             'content':je['cnt'].decode('utf-8'),
+             'content':je['cnt'],
              'attrs':je['attrs'],
              'created_at':je['created_at'],
              'tid':je['tid']} for je in jes]
@@ -249,7 +249,7 @@ def get_children(C,tid):
     rows = [t['contents'] for t in C.fetchall()]
     rt=[]
     for r in rows:
-        r['created_at']=datetime.strptime( r['created_at'].split('.')[0], "%Y-%m-%dT%H:%M:%S" )
+        r['created_at']=datetime.strptime( r['created_at'].split('.')[0].split('Z')[0], "%Y-%m-%dT%H:%M:%S" )
         t = Task(**r)
         rt.append(t)
     return rt
@@ -286,3 +286,8 @@ def get_task(C,tid):
     C.execute("select contents from tasks where id=%s",(tid,))
     c = C.fetchall()[0]['contents']
     return Task(**c)
+
+def get_tags(C):
+    C.execute("select tag,count(*) from task_tags group by tag")
+    res = C.fetchall()
+    return dict([(r['tag'],r['count']) for r in res])

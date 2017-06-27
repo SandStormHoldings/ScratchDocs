@@ -98,7 +98,8 @@ loading feed..
 % if type(possible_metastates[k])!=tuple:
 <% inptp = possible_metastates[k].split('(')[1].split(')')[0] %>
 % if noinput:
-${float(v and v or 0)-float(total_hours)}\
+## ${float(v and v or 0)-float(total_hours)}
+FIXME:total_hours placeholder\
 % else:
 <input \
    type="${inptp}" \

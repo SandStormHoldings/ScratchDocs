@@ -25,7 +25,7 @@ class Task(object):
     
     # emulating old style task objects
     @staticmethod
-    def get(C,tid):
+    def get(C,tid=None):
         qry = "select * from tasks where id=%s"
         C.execute(qry,(tid,))
         row = C.fetchall()[0]['contents']
@@ -36,7 +36,12 @@ class Task(object):
     def __getitem__(self, key):
         if key==0: raise Exception('why am i being asked for 0?',self.__dict__)
         #print("asked for",key,"got",self.__dict__)
-        return self.__dict__[key]
+        try:
+            rt = self.__dict__[key]
+        except KeyError:
+            print('could not obtain key',key,'from',self.__dict__.keys())
+            raise
+        return rt
             
     def save(self,P,C,user=None,notify=True,fetch_stamp=None):
         try:
@@ -220,13 +225,6 @@ def get_journals(day=None):
     else:
         return Task.view('task/journals')
 
-def get_tags():
-    tags = [t['key'] for t in Task.view('task/tag_ids')]
-    agg={}
-    for t in tags:
-        if t not in agg: agg[t]=0
-        agg[t]+=1
-    return agg
 
 def last_change(t,d,specific_rev=None):
     #print 'notifying over last_change in %s, %s, %s'%(t,d,specific_rev)

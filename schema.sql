@@ -311,6 +311,16 @@ CREATE VIEW task_hierarchy AS
 
 
 --
+-- Name: task_tags; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW task_tags AS
+ SELECT tasks.id,
+    jsonb_array_elements_text((tasks.contents -> 'tags'::text)) AS tag
+   FROM tasks;
+
+
+--
 -- Name: tasks_deps; Type: VIEW; Schema: public; Owner: -
 --
 
@@ -658,9 +668,7 @@ bug	30
 critical	70
 techdebt	20
 PRI_LOW	-20
-eCogra	10
 operational	50
-jordan	100
 ops	100
 \.
 

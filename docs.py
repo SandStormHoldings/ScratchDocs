@@ -26,7 +26,7 @@ import shlex
 from dulwich.repo import Repo as DRepo
 import gc
 from couchdb import *
-from pg import get_new_idx
+from pg import get_new_idx,get_tags
 
 P = init_conn()
 
@@ -282,16 +282,30 @@ def filterby(fieldname,value,rtl):
         rtl = list(rf)
     return rtl
 
-def get_latest(tags='email',newer_than=None,limit=300):
-    tv = Task.view('task/latest_changes',startkey=newer_than)
-    trets = [(datetime.datetime.strptime(t['key'],'%Y-%m-%dT%H:%M:%SZ'), #last update time
-              get_task(t['value'][0]), #task obj
-              t['value'][1], #task tags
-              t['value'][2], #assignee
-              t['value'][3],  #content of last change
-              t['value'][4], #num of journal updates
-    ) for t in tv if len(set(t['value'][1]).intersection(set(tags)))==len(tags)]
-    trets.sort(lambda x,y: cmp(x[0],y[0]),reverse=True)
+def get_latest(C,tags='email',newer_than=None,limit=300):
+    nt = datetime.datetime.strptime(newer_than.translate({None: ':-'}), "%Y-%m-%dT%H:%M:%S")
+    args = (tuple(tags),nt,limit,) #set(tags) ,limit)
+    qry = """select je.* 
+from 
+journal_entries je,
+task_tags t 
+where 
+t.tag in %s and
+je.tid=t.id and 
+je.created_at>=%s 
+order by je.created_at desc 
+limit %s"""
+    C.execute(qry,args)
+    tv = C.fetchall()
+    trets = [(t['created_at'],
+              get_task(C,t['tid']),
+              [], #TODO: tags
+              t['assignee'],
+              t['attrs'],
+              0 #TODO: num of journal updates
+              )
+              for t in tv]
+    trets.sort(key=lambda x:x[0],reverse=True)
     return trets
 
 def intersect(*d):
