@@ -11,7 +11,7 @@ from collections import defaultdict
 
 vers={}
 
-lstre = re.compile('^/(cross_links|branches|tags|informed)')
+lstre = re.compile('^/(cross_links|branches|tags|informed|dependencies)')
 urlre = re.compile('http(|s)\:\/\/([^\/]+)/([^ ]*)',re.I)
 jenkre = re.compile('job/([^/]+)/([^ ]+)')
 def jenkshorten(sval):
@@ -173,9 +173,9 @@ def parse_diff(jps,o1,o2,maxlen,v1rev,v2rev):
             tkey = spl[1]
             tidx = int(spl[2])
             try:
-                tval=(o2[tkey][tidx-1])
+                tval=(o1[tkey][tidx-1])
             except IndexError:
-                sys.stderr.write(" ".join(["cannot find ",tkey,tidx,o2[tkey]]))
+                print("cannot find",tkey,tidx,o2[tkey])
                 raise
             except Exception as e:
                 raise
@@ -201,7 +201,7 @@ def parse(C,ts,rev=None):
     for t in ts:
         doc = get_revisions(C,t._id)
         revs = list(doc.keys())
-        #revs.reverse()
+        revs.reverse()
         for i in range(0,len(revs)-1):
             v1rev = revs[i]
             v2rev = revs[i+1]
@@ -223,8 +223,8 @@ def parse(C,ts,rev=None):
                 continue
             if jps:
                 try:
-                    cnt,lchanges = parse_diff(jps,j2,j1,maxlen=30,v1rev=v2rev,v2rev=v1rev)
-                    cnt,schanges = parse_diff(jps,j2,j1,maxlen=10,v1rev=v2rev,v2rev=v1rev)
+                    cnt,lchanges,nt = parse_diff(jps,j1,j2,maxlen=30,v1rev=v1rev,v2rev=v2rev)
+                    cnt,schanges,nt = parse_diff(jps,j1,j2,maxlen=10,v1rev=v1rev,v2rev=v2rev)
                 except:
                     raise
                     print(t._id,v1rev,v2rev,json.dumps(['PARSEDIFFERR']))
