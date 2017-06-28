@@ -1143,8 +1143,8 @@ def deps_validate(C,tsaves,tid,deps):
     # make sure they indeed are valid tasks
     for d in deps:
         try:
-            Task.get(d)
-        except ResourceNotFound:
+            Task.get(C,d)
+        except IndexError:
             avoid.append(d)
 
     # clean the disallowed deps    
