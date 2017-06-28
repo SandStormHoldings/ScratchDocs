@@ -4,9 +4,6 @@
 [submodule "orgile"]
 	path = orgile
 	url = https://github.com/mashdot/orgile
-[submodule "couchdb-dump"]
-	path = couchdb-dump
-	url = https://github.com/danielebailo/couchdb-dump
 [submodule "noodles"]
 	path = noodles
 	url = https://github.com/SandStormHoldings/NoodlesFramework

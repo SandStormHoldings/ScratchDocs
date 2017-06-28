@@ -23,7 +23,7 @@ def jenkshorten(sval):
     return sval
 
 def urlshorten(sval,path=False):
-    while True:
+    while True and sval:
         urlres = urlre.search(sval)
         if not urlres: break
         if path and jenkre.search(urlres.group(3)):
@@ -38,7 +38,7 @@ def shorten(value,maxlen=30):
     #raise Exception(value)
     sval = urlshorten(sval)
 
-    for sep in ['** Unstructured','** Details','** Email contents']: sval = sval.replace(sep,'')
+    for sep in ['** Unstructured','** Details','** Email contents']: sval = sval and sval.replace(sep,'') or ''
     for sep in ['\n','\r']: sval = sval.replace(sep," ")
     while "  " in sval: sval = sval.replace("  "," ")
     sval = sval.strip()
@@ -155,6 +155,8 @@ def parse_diff(jps,o1,o2,maxlen,v1rev,v2rev):
         elif path in ['/tags','/informed'] and op=='add':
             lchange='%s=%s'%(fn,",".join(value))
         #skip moving of elements in std lists
+        elif path in '/id':
+            continue
         elif lstre.search(path) and op=='move':
             continue
         #initial assigning
