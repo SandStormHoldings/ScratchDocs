@@ -26,10 +26,11 @@
 	<tr>
 	  <th>assignee</th>
 	</tr>
-	</thead>
-    % for a,lst in sorted(orders.items(),key=lambda x:len(x[1]),reverse=True):
+      </thead>
+      <% items = sorted(orders.items(),key=lambda x:assignee_pri[x[0]],reverse=True) %>
+    % for a,lst in items:
     <tr>
-      <td><a href="${upr}/assignments/${a}">${a}</a></td>
+      <td><a href="${upr}/assignments/${a}">${a}</a> (<span title="priorities sum">${assignee_pri[a]}</span>)</td>
       % for l in lst:
       <td class="${l['tracked'] is None and 'untracked' or (l['tracked']>=fresh and 'tracked-fresh' or 'tracked')} \
 		 ${l['last_commit'] is None and 'nocommits' or (l['last_commit']>=fresh and 'commits-fresh' or 'commits')}">

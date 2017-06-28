@@ -367,6 +367,7 @@ def prioritization(request,P,C):
     orders={}
     cnt=0
     assignees={}
+    assignee_pri={}
     handlers={}
     statuses={}
     for tp in C.fetchall():
@@ -375,8 +376,11 @@ def prioritization(request,P,C):
         if a not in orders: orders[a]=[]
         orders[a].append(tp)
 
-        if a not in assignees: assignees[a]=0
+        if a not in assignees:
+            assignees[a]=0
+            assignee_pri[a]=0
         assignees[a]+=1
+        assignee_pri[a]+=tp['comb_pri']
         h = tp['hby']
         if h not in handlers: handlers[h]=0
         handlers[h]+=1
@@ -393,6 +397,7 @@ def prioritization(request,P,C):
     rt['humanize'] = humanize
     rt['doingstates'] = cfg.DOINGSTATES
     rt['donestates'] = cfg.DONESTATES
+    rt['assignee_pri'] = assignee_pri
     return basevars(request,P,C,rt)
 
 @render_to('task.html')
