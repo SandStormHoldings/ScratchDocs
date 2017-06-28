@@ -291,3 +291,11 @@ def get_tags(C):
     C.execute("select tag,count(*) from task_tags group by tag")
     res = C.fetchall()
     return dict([(r['tag'],r['count']) for r in res])
+
+
+def get_revisions(C,tid):
+    C.execute("select * from tasks where id=%s union select * from tasks_history where id=%s order by sys_period desc",(tid,tid))
+    res = C.fetchall()
+    return dict([((r['sys_period'].lower and r['sys_period'].lower.strftime('%Y-%m-%dT%H:%I:%S') or '')+
+                  '_'+
+                 (r['sys_period'].upper and r['sys_period'].upper.strftime('%Y-%m-%dT%H:%I:%S') or ''),r) for r in res])

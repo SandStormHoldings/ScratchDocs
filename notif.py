@@ -46,7 +46,7 @@ def shorten(value,maxlen=30):
 
     return sval
 
-def parse_diff(jps,o1,o2,maxlen):
+def parse_diff(jps,o1,o2,maxlen,v1rev,v2rev):
     schanges=[] ; lchanges=[] ; cnt=0
     new_task=False
     for jp in jps:
@@ -179,7 +179,7 @@ def parse_diff(jps,o1,o2,maxlen):
                 raise
             lchange='%s-=%s'%(fn,tval)
         else:
-            raise Exception(fn,jp)
+            raise Exception(fn,jp,v1rev,v2rev)
         lchanges.append(lchange)
         
     return cnt,list(set(lchanges)),new_task
@@ -193,25 +193,26 @@ def clean(o):
             del je['created_at']
 
 
-def parse(D,ts,rev=None):
+def parse(C,ts,rev=None):
     from couchdb import Task,get_children
+    from pg import get_revisions
     for t in ts:
-        doc = D.open_doc(t._id,revs=True)
-        revs = doc['_revisions']['ids']
-        revs.reverse()
-        revs = ['%s-%s'%(i,revs[i-1]) for i in range(1,len(revs)+1)]
+        doc = get_revisions(C,t._id)
+        revs = list(doc.keys())
+        #revs.reverse()
         for i in range(0,len(revs)-1):
             v1rev = revs[i]
             v2rev = revs[i+1]
             if rev and v1rev!=rev: continue
             try:
-                v1 = Task.get(t._id,rev=v1rev)
-                v2 = Task.get(t._id,rev=v2rev)
-            except ResourceNotFound:
+                v1 = doc[v1rev]
+                v2 = doc[v2rev]
+            except: #ResourceNotFound:
+                raise
                 print(t._id,v1rev,v2rev,json.dumps(['NOTFOUNDERR']))
                 continue
-            j1 = v1.to_json()
-            j2 = v2.to_json()
+            j1 = v1['contents']
+            j2 = v2['contents']
             clean(j1) ; clean(j2)
             try:
                 jps = jsonpatch.JsonPatch.from_diff(j1,j2)
@@ -220,8 +221,8 @@ def parse(D,ts,rev=None):
                 continue
             if jps:
                 try:
-                    cnt,lchanges = parse_diff(jps,j2,j1,maxlen=30)
-                    cnt,schanges = parse_diff(jps,j2,j1,maxlen=10)
+                    cnt,lchanges = parse_diff(jps,j2,j1,maxlen=30,v1rev=v2rev,v2rev=v1rev)
+                    cnt,schanges = parse_diff(jps,j2,j1,maxlen=10,v1rev=v2rev,v2rev=v1rev)
                 except:
                     raise
                     print(t._id,v1rev,v2rev,json.dumps(['PARSEDIFFERR']))
@@ -234,19 +235,19 @@ def parse(D,ts,rev=None):
 # sd/notif.py parse | pv -s 10574005 > notifications-5.json
 # 2. test the results for indicators such as length
 # grep -v NOTFOUND notifications-5.json | grep '"OK"' | sd/notif.py test | grep -v  _OK | sort -k5n
-if __name__=='__main__':
-    import config as cfg
-    from docs import initvars
-    initvars(cfg)
-    from docs import D
-    from couchdb import Task,get_children
+
+
+def main(C):
+
+    from couchdb import Task
+    from pg import get_children
     if sys.argv[1]=='parse':
 
         if len(sys.argv)>2:
-            ts = [Task.get(sys.argv[2])]+get_children(sys.argv[1])
+            ts = [Task.get(C,sys.argv[2])]+get_children(C,sys.argv[1])
         else:
             ts = Task.view('task/all')
-        parse(D,ts,len(sys.argv)>3 and sys.argv[3] or None)
+        parse(C,ts,len(sys.argv)>3 and sys.argv[3] or None)
     elif sys.argv[1]=='test':
         for ln in sys.stdin:
             spl = ln.strip().split(" ")
@@ -264,3 +265,11 @@ if __name__=='__main__':
 
     else:
         raise Exception('argh')
+
+if __name__=='__main__':
+    from docs import initvars,P
+    import config as cfg
+    initvars(cfg)
+    with P as p:
+        C = p.cursor()
+        main(C)
