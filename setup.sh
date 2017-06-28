@@ -54,6 +54,11 @@ function install_prerequisites() {
 function build_app() {
     echo "# BUILDING TASKS/PY"
     docker build -t tasks/py .    
+}
+
+function build_pg() {
+    echo "# BUILDING PG"
+    cd $DIR"/docker/pg" && docker build -t tasks/pg . ; cd $DIR
     }
 
 function envs_obtain() {
@@ -76,7 +81,10 @@ function storage_launch() {
     echo '# RUNNING REDIS' &&
     docker run -d --name=redis redis &&
     echo '# RUNNING POSTGRESQL' &&     PW="passw0rd" #$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 6 | head -n 1)
-    docker run -d --env 'USERMAP_UID='$IDU --env 'DB_NAME=tasks' --env 'DB_USER=tasks' --env 'DB_PASS='$PW --name=pg -v $PWD"/docker/pg/data:/var/lib/postgresql" sameersbn/postgresql &&
+    docker run -d --env 'USERMAP_UID='$IDU --env 'DB_NAME=tasks' --env 'DB_USER=tasks' --env 'DB_PASS='$PW --name=pg -v $PWD"/docker/pg/data:/var/lib/postgresql" tasks/pg &&
+    wait_for $PGHOST 5432 "pg"
+    echo "# INSTALLING PG EXTENSION" &&
+    docker exec -ti pg /extensions.sh &&
     envs_obtain &&
     wait_for $REDISHOST 6379 "redis"
     
@@ -154,8 +162,7 @@ function launch_app() {
 function pull_and_build() {
     echo "# PULLING REDIS" &&
     docker pull redis &&
-    echo "# PULLING POSTGRESQL" &&
-    docker pull sameersbn/postgresql &&
+    build_pg &&
     build_app 
 }
 

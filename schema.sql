@@ -24,6 +24,20 @@ SET row_security = off;
 
 
 
+--
+-- Name: temporal_tables; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS temporal_tables WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION temporal_tables; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION temporal_tables IS 'temporal tables';
+
+
 SET search_path = public, pg_catalog;
 
 SET default_tablespace = '';
@@ -40,7 +54,8 @@ CREATE TABLE tasks (
     contents jsonb,
     show_in_gantt boolean DEFAULT true,
     changed_at timestamp without time zone,
-    changed_by character varying(32)
+    changed_by character varying(32),
+    sys_period tstzrange NOT NULL
 );
 
 
@@ -357,6 +372,21 @@ CREATE VIEW tasks_deps_hierarchy AS
 
 
 --
+-- Name: tasks_history; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE tasks_history (
+    id character varying NOT NULL,
+    parent_id character varying,
+    contents jsonb,
+    show_in_gantt boolean,
+    changed_at timestamp without time zone,
+    changed_by character varying(32),
+    sys_period tstzrange NOT NULL
+);
+
+
+--
 -- Name: tasks_pri; Type: VIEW; Schema: public; Owner: -
 --
 
@@ -624,6 +654,13 @@ CREATE INDEX status_idx ON tasks USING btree (((contents ->> 'status'::text)));
 --
 
 CREATE INDEX tags_idx ON tasks USING btree (((contents ->> 'tags'::text)));
+
+
+--
+-- Name: tasks tasks_trigger; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER tasks_trigger BEFORE INSERT OR DELETE OR UPDATE ON tasks FOR EACH ROW EXECUTE PROCEDURE versioning('sys_period', 'tasks_history', 'true');
 
 
 --
