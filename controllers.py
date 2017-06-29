@@ -18,6 +18,7 @@ from webob import exc
 from noodles.templates import render_to
 from docs import initvars
 from pg import get_repos,get_usernames,hasperm,hasperm_db,get_participants,get_all_journals,get_children,get_journals,get_cross_links,get_task,get_tags
+from notif import parse
 import config as cfg
 initvars(cfg)
 from docs import cre,date_formats,parse_attrs,get_fns,get_parent_descriptions,rewrite,get_new_idx,add_task,get_parent,flush_taskfiles_cache,tasks_validate, get_karma, get_karma_receivers, deps_validate
@@ -399,6 +400,14 @@ def prioritization(request,P,C):
     rt['donestates'] = cfg.DONESTATES
     rt['assignee_pri'] = assignee_pri
     return basevars(request,P,C,rt)
+
+@render_to('task_changes.html')
+@db
+def task_changes(request,P,C,task):
+    t=Task.get(C,task)
+    diffs = parse(C,[t])
+    diffs.sort(key=lambda x:x['v2rev'],reverse=True)
+    return basevars(request,P,C,{'diffs':diffs,'t':t})
 
 @render_to('task.html')
 @db

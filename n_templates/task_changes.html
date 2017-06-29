@@ -1,0 +1,45 @@
+<%inherit file="/base.html" />
+<%def name="content()">
+<h4>changelog for task <a href="${upr}/${t._id}">${t._id}</a>: ${t.summary}</h4>
+<table border=1>
+  <thead>
+    <tr>
+      <th>v1rev</th>
+      <th>v2rev</th>
+      <th>at</th>
+      <th>by</th>
+      <th>changes</th>
+    </tr>
+  </thead>
+  <% revc=prevc=None %>
+  % for d in diffs:
+  % for lc in d['lchanges']:
+  <% revc = ':'.join([d['v1rev'],d['v2rev']]) %>
+  <tr>
+    % if revc==prevc:
+    <td colspan=2></td>
+    % else:
+    <td><small>${d['v1rev']}</small></td>
+    <td><small>${d['v2rev']}</small></td>
+    % endif
+    <td>${d['changed_at']}</td>
+    <td>${d['changed_by']}</td>
+  <td>${lc}</td>
+  </tr>
+<% prevc = revc %>
+% endfor
+% if request.params.get('detailed'):
+  <tr>
+    <td>detail</td>
+  </tr>
+  % for j in d['jp']:
+  <tr>
+    <td></td>
+    <td colspan=4>
+      <pre>${j}</pre>
+    </td>
+    % endfor
+  % endif
+% endfor
+</table>
+</%def>

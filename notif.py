@@ -200,6 +200,7 @@ def clean(o):
 def parse(C,ts,rev=None):
     from couchdb import Task,get_children
     from pg import get_revisions
+    rt=[]
     for t in ts:
         doc = get_revisions(C,t._id)
         revs = list(doc.keys())
@@ -225,14 +226,36 @@ def parse(C,ts,rev=None):
                 continue
             if jps:
                 try:
-                    cnt,lchanges,nt = parse_diff(jps,j1,j2,maxlen=30,v1rev=v1rev,v2rev=v2rev)
-                    cnt,schanges,nt = parse_diff(jps,j1,j2,maxlen=10,v1rev=v1rev,v2rev=v2rev)
+                    lcnt,lchanges,nt = parse_diff(jps,j1,j2,maxlen=30,v1rev=v1rev,v2rev=v2rev)
+                    scnt,schanges,nt = parse_diff(jps,j1,j2,maxlen=10,v1rev=v1rev,v2rev=v2rev)
+                    
+                    rt.append({'tid':t._id,
+                               'lchanges_cnt':lcnt,
+                               'lchanges':lchanges,
+                               'schanges_cnt':scnt,
+                               'schanges':schanges,
+                               'nt':nt,
+                               'v1rev':v1rev,
+                               'v2rev':v2rev,
+                               'changed_at':v1['changed_at'],
+                               'changed_by':v1['changed_by'],
+                               'jp':jps})
                 except:
                     raise
                     print(t._id,v1rev,v2rev,json.dumps(['PARSEDIFFERR']))
+                    rt.append({'tid':t._id,
+                               'cnt':cnt,
+                               'lchanges':json.dumps(['PARSEDIFFERR']),
+                               'nt':nt,
+                               'v1rev':v1rev,
+                               'v2rev':v2rev,
+                               'changed_at':v1['changed_at'],
+                               'changed_by':v1['changed_by'],
+                               'jp':jps})
+                    
                     continue
                 print(t._id,v1rev,v2rev,json.dumps(['OK',lchanges,schanges]))
-
+        return rt
 
 # expected usage in order to test how notifications behave:
 # 1. parse all revisions into an intermediate results file

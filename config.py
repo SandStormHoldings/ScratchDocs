@@ -1,4 +1,4 @@
-AUTO_STOP=True
+AUTO_STOP=False
 DATADIR='data'
 SHORTCUT_PREFIX='s'
 OUTDIR='render'

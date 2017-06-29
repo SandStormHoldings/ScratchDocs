@@ -21,6 +21,7 @@ def get_map():
                 (URL_PREFIX+'/s/{task:[\d\/]+}/j','controllers#journal'),
                 (URL_PREFIX+'/s/{task:[\d\/]+}/j/{jid}','controllers#journal_edit'),
                 (URL_PREFIX+'/s/{task:((new/|)[\d\/]+)}','controllers#task'),
+                (URL_PREFIX+'/s/{task:((new/|)[\d\/]+)}/c','controllers#task_changes'),        
     ]
     taskmaps+=([(t[0].replace('/s/','/'),t[1]) for t in taskmaps])
 
@@ -87,6 +88,7 @@ def get_map():
     
     for pf,gethours in list({'/tr':True,'':False}.items()):
         mp.connect(None,URL_PREFIX+'/assignments/{person}'+pf, controller='controllers',action='assignments',gethours=gethours)
+        mp.connect(None,URL_PREFIX+'/a/{person}'+pf, controller='controllers',action='assignments',gethours=gethours) # synonym to /assignments
         mp.connect(None,URL_PREFIX+'/created/{person}'+pf, controller='controllers',action='created',gethours=gethours),
         mp.connect(None,URL_PREFIX+'/informed/{person}'+pf, controller='controllers',action='informed',gethours=gethours),
         mp.connect(None,URL_PREFIX+'/handled_by/{person}'+pf, controller='controllers',action='handled_by',gethours=gethours),
