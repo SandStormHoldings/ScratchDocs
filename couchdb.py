@@ -60,21 +60,25 @@ class Task(object):
             import tasks
             tasks.notifications.apply_async((user,self._id),countdown=10)
         
-    def _notify(self,user,lc=None):
+    def _notify(self,P,C,user,lc=None):
         #raise Exception('in notify of %s action by user %s'%(lc,user))
         #print 'in notify'
         import sendgrid,sendgrid.helpers.mail
         import config as cfg
-        from docs import P,D
-        from pg import get_participants
-        with P as p:
-            C = p.cursor()
-            participants = get_participants(C,disabled=True)
+        import notif
+        from pg import get_participants,last_change
+        participants = get_participants(C,disabled=True)
         if not lc:
-            lc = last_change(self,D)
+            # last change
+            lc = notif.parse(C,[self],supress=False,limit=2)
+            if len(lc): lc=lc[0]
         if not lc: return
-
-        cnt,rev,lchanges,schanges,isnew = lc
+        cnt = lc['lchanges_cnt']
+        rev = lc['v2rev']
+        lchanges = lc['lchanges']
+        schanges = lc['schanges']
+        isnew=lc['nt']
+        #cnt,rev,lchanges,schanges,isnew = lc
         if not cnt or not len(lchanges):
             #print 'no notifications needed'
             return
@@ -141,13 +145,11 @@ class Task(object):
         notif = {'notified_at':datetime.datetime.now(),
                  'user':user,
                  'informed':rcpts}
-        with P as p:
-            ts = Task.get(self._id)
-            if not hasattr(ts,'notifications'): ts.notifications={}
-            ts.notifications[rev]=notif
-            print('saving notification')
-            C = p.cursor()
-            ts.save(P,C,user='notify-trigger',notify=False)
+        ts = Task.get(C,self._id)
+        if not hasattr(ts,'notifications'): ts.notifications={}
+        ts.notifications[rev]=notif
+        print('saving notification')
+        ts.save(P,C,user='notify-trigger',notify=False)
         print('done')
 
         
@@ -226,39 +228,6 @@ def get_journals(day=None):
         return Task.view('task/journals')
 
 
-def last_change(t,d,specific_rev=None):
-    #print 'notifying over last_change in %s, %s, %s'%(t,d,specific_rev)
-    doc = d.open_doc(t._id,revs=True)
-    i=len(doc['_revisions']['ids'])
-    pdc={} ; prev = None
-    revs = doc['_revisions']['ids']
-    lastrevi = int(t._rev.split('-')[0])
-    idxdiff = lastrevi-len(revs)
-    revs.reverse()
-    revs = ['%s-%s'%(i+idxdiff,revs[i-1]) for i in range(1,len(revs)+1)]
-    if specific_rev:
-        while len(revs) and revs[-1]!=specific_rev:
-            revs.pop()
-    if len(revs)<2:
-        prev=None
-    else:
-        prev = revs[-2]
-    obt = revs[-1]
-    j1 = t.to_json() ; notif.clean(j1)
-    if prev:
-        #print 'obtaining task %s rev %s'%(t._id,prev)
-        t2 = Task.get(t._id,rev=prev)
-    else:
-        print('prev does not exist. starting with an empty task.')
-        prev='initial-%s'%t._id
-        t2 = Task()
-    j2 = t2.to_json() ; notif.clean(j2)
-    jps = jsonpatch.JsonPatch.from_diff(j2,j1)
-    cnt,lchanges,isnew = notif.parse_diff(jps,j1,j2,maxlen=100)
-    cnt,schanges,isnew = notif.parse_diff(jps,j1,j2,maxlen=10)
-
-    if cnt: print('%s differences, %s lchanges between %s and %s'%(cnt,len(lchanges),prev,obt))
-    return cnt,obt,lchanges,schanges,isnew
 
 def all_changes(t,d):
     ch={}

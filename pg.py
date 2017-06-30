@@ -111,14 +111,20 @@ def get_journals(P,C,assignee=None,metastate_group='merge',archive=False):
     for r in C.fetchall():
         rt.append(r)
     return rt
+
+
 def journal_digest(j):
+    """prepare a digest of the journal's most recent state."""
     rt={}
     for i in j:
         cat = i['created_at']
         jc = i['content']
         ja = i['creator']
         for k,v in list(i['attrs'].items()):
+            if type(cat)!=str:
+                cat = cat.strftime('%Y-%m-%dT%H:%I:%S')
             if k not in rt: rt[k]={'created_at':cat}
+            #print('about to compare',type(rt[k]['created_at']),'with',type(cat))
             if rt[k]['created_at']<=cat:
                 rt[k]['created_at']=cat
                 rt[k]['value']=v
@@ -293,9 +299,22 @@ def get_tags(C):
     return dict([(r['tag'],r['count']) for r in res])
 
 
-def get_revisions(C,tid):
-    C.execute("select * from tasks where id=%s union select * from tasks_history where id=%s order by sys_period desc",(tid,tid))
+def get_revisions(C,tid,limit=None):
+    qry = "select * from tasks where id=%s union select * from tasks_history where id=%s order by sys_period desc"
+    args = [tid,tid]
+    if limit:
+        qry+=" limit %s"
+        args.append(limit)
+    C.execute(qry,args)
     res = C.fetchall()
-    return dict([((r['sys_period'].lower and r['sys_period'].lower.strftime('%Y-%m-%dT%H:%I:%S') or '')+
-                  '_'+
-                 (r['sys_period'].upper and r['sys_period'].upper.strftime('%Y-%m-%dT%H:%I:%S') or ''),r) for r in res])
+    rt = {}
+    strfmt='%Y-%m-%dT%H:%I:%S'
+    for r in res:
+        bnd= sorted(filter(lambda x:x,[r['sys_period'].lower,r['sys_period'].upper]))
+        lower = bnd[0] ; upper = len(bnd)>1 and bnd[1] or None
+        k=(lower and lower.strftime(strfmt) or '')+'_'+(upper and upper.strftime(strfmt) or '')
+        rt[k]=r
+    return rt
+
+def last_change(C,tid):
+    return get_revisions(C,tid,limit=2)

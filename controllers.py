@@ -405,8 +405,7 @@ def prioritization(request,P,C):
 @db
 def task_changes(request,P,C,task):
     t=Task.get(C,task)
-    diffs = parse(C,[t])
-    diffs.sort(key=lambda x:x['v2rev'],reverse=True)
+    diffs = parse(C,[t],supress=True)[::-1]
     return basevars(request,P,C,{'diffs':diffs,'t':t})
 
 @render_to('task.html')

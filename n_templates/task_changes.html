@@ -1,7 +1,7 @@
 <%inherit file="/base.html" />
 <%def name="content()">
 <h4>changelog for task <a href="${upr}/${t._id}">${t._id}</a>: ${t.summary}</h4>
-<table border=1>
+<table>
   <thead>
     <tr>
       <th>v1rev</th>
@@ -15,7 +15,7 @@
   % for d in diffs:
   % for lc in d['lchanges']:
   <% revc = ':'.join([d['v1rev'],d['v2rev']]) %>
-  <tr>
+  <tr class='${revc!=prevc and 'topline' or ''}'>
     % if revc==prevc:
     <td colspan=2></td>
     % else:

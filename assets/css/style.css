@@ -52,6 +52,9 @@ iframe.rndr {
 .tracked-fresh {
     background-color:#c0ff33;
 }
+.topline {
+    border-top:solid 1px black;
+}
 .tracked {
     background-color:#e5ff99;
 }

@@ -46,7 +46,7 @@ def shorten(value,maxlen=30):
 
     return sval
 
-def parse_diff(jps,o1,o2,maxlen,v1rev,v2rev):
+def parse_diff(jps,o1,o2,maxlen,v1rev,v2rev,supress=False):
     schanges=[] ; lchanges=[] ; cnt=0
     new_task=False
     for jp in jps:
@@ -87,6 +87,9 @@ def parse_diff(jps,o1,o2,maxlen,v1rev,v2rev):
         if path in ['/external_thread_id','/created_at','/path','/cross_links_raw']: continue
         #karma is a special case
         if path in ['/branches','/journal','/links'] and op=='add' and value==[]:
+            continue
+        # this is a little digest we put aside inside the json, it is not a source of truth
+        if path.startswith('/journal_digest/'):
             continue
         if path=='/karma' and op=='add':
             chng=None
@@ -182,6 +185,8 @@ def parse_diff(jps,o1,o2,maxlen,v1rev,v2rev):
             except Exception as e:
                 raise
             lchange='%s-=%s'%(fn,tval)
+        elif supress:
+            lchange='(unparsed)'+json.dumps(jp)
         else:
             raise Exception(fn,jp,v1rev,v2rev)
         lchanges.append(lchange)
@@ -197,12 +202,12 @@ def clean(o):
             del je['created_at']
 
 
-def parse(C,ts,rev=None):
+def parse(C,ts,rev=None,supress=False,limit=None):
     from couchdb import Task,get_children
     from pg import get_revisions
     rt=[]
     for t in ts:
-        doc = get_revisions(C,t._id)
+        doc = get_revisions(C,t._id,limit=limit)
         revs = list(doc.keys())
         revs.reverse()
         for i in range(0,len(revs)-1):
@@ -226,9 +231,8 @@ def parse(C,ts,rev=None):
                 continue
             if jps:
                 try:
-                    lcnt,lchanges,nt = parse_diff(jps,j1,j2,maxlen=30,v1rev=v1rev,v2rev=v2rev)
-                    scnt,schanges,nt = parse_diff(jps,j1,j2,maxlen=10,v1rev=v1rev,v2rev=v2rev)
-                    
+                    lcnt,lchanges,nt = parse_diff(jps,j1,j2,maxlen=30,v1rev=v1rev,v2rev=v2rev,supress=supress)
+                    scnt,schanges,nt = parse_diff(jps,j1,j2,maxlen=10,v1rev=v1rev,v2rev=v2rev,supress=supress)
                     rt.append({'tid':t._id,
                                'lchanges_cnt':lcnt,
                                'lchanges':lchanges,
@@ -237,8 +241,8 @@ def parse(C,ts,rev=None):
                                'nt':nt,
                                'v1rev':v1rev,
                                'v2rev':v2rev,
-                               'changed_at':v1['changed_at'],
-                               'changed_by':v1['changed_by'],
+                               'changed_at':v2['changed_at'],
+                               'changed_by':v2['changed_by'],
                                'jp':jps})
                 except:
                     raise
@@ -249,8 +253,8 @@ def parse(C,ts,rev=None):
                                'nt':nt,
                                'v1rev':v1rev,
                                'v2rev':v2rev,
-                               'changed_at':v1['changed_at'],
-                               'changed_by':v1['changed_by'],
+                               'changed_at':v2['changed_at'],
+                               'changed_by':v2['changed_by'],
                                'jp':jps})
                     
                     continue
