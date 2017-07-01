@@ -410,7 +410,7 @@ def task_changes(request,P,C,task):
 
 @render_to('task.html')
 @db
-def task(request,P,C,task):
+def task(request,P,C,task,rev=None):
     # fetch_stamp is a hidden form input used to protect task updates against overwrite by older forms of the task submitted
     fstamp = request.params.get('changed_at')
     if fstamp and fstamp!='None': fstamp = datetime.datetime.strptime( fstamp, "%Y-%m-%d %H:%M:%S.%f" )
@@ -591,7 +591,10 @@ def task(request,P,C,task):
             changed_at = fo['changed_at']
         else:
             changed_at = None
-        t = get_task(C,task)
+        if rev:
+            t = Task.get_rev(C,task,rev)
+        else:
+            t = get_task(C,task)
         par = task ; parents=[]
         parents = task.split('/')
         opar = []
@@ -637,6 +640,7 @@ def task(request,P,C,task):
     dependants = [d for d in C.fetchall()]
 
     return basevars(request,P,C,{'task':t,
+                                 'rev':rev,
                                  'changed_at':changed_at,
                                  'pri':pri,
                                  'dep_pri':dep_pri,

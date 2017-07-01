@@ -21,7 +21,8 @@ def get_map():
                 (URL_PREFIX+'/s/{task:[\d\/]+}/j','controllers#journal'),
                 (URL_PREFIX+'/s/{task:[\d\/]+}/j/{jid}','controllers#journal_edit'),
                 (URL_PREFIX+'/s/{task:((new/|)[\d\/]+)}','controllers#task'),
-                (URL_PREFIX+'/s/{task:((new/|)[\d\/]+)}/c','controllers#task_changes'),        
+                (URL_PREFIX+'/s/{task:([\d\/]+)}/c','controllers#task_changes'),
+                (URL_PREFIX+'/s/{task:([\d\/]+)}/rev/{rev:.*}','controllers#task'),        
     ]
     taskmaps+=([(t[0].replace('/s/','/'),t[1]) for t in taskmaps])
 

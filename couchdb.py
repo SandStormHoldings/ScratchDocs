@@ -5,6 +5,11 @@ import sys
 import re
 import jsonpatch
 import pg
+
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 from config import PG_DSN
 def init_conn():
     p = pg.ConnectionPool(dsn=PG_DSN)
@@ -28,6 +33,15 @@ class Task(object):
     def get(C,tid=None):
         qry = "select * from tasks where id=%s"
         C.execute(qry,(tid,))
+        row = C.fetchall()[0]['contents']
+        return Task(**row)
+    @staticmethod
+    def get_rev(C,tid,rev):
+        r = rev.split('_')
+        args =  (tid,r[0] and r[0] or None,r[1] and r[1] or None)
+        qry = "select * from "+(r[1] and 'tasks_history' or 'tasks')+" where id=%s and sys_period=tstzrange(%s,%s)"
+        C.execute(qry,args)
+        #print(qry,args)
         row = C.fetchall()[0]['contents']
         return Task(**row)
     def __init__(self,**kwargs):
@@ -63,7 +77,6 @@ class Task(object):
     def _notify(self,P,C,user,lc=None):
         #raise Exception('in notify of %s action by user %s'%(lc,user))
         #print 'in notify'
-        import sendgrid,sendgrid.helpers.mail
         import config as cfg
         import notif
         from pg import get_participants,last_change
@@ -131,17 +144,15 @@ class Task(object):
             #     for cca in cfg.EMAIL_RECIPIENTS_CC:
             #         print 'adding Cc',cca
             #         msg.add_cc(cca)
-
-            sg = sendgrid.SendGridAPIClient(apikey=cfg.SENDGRID_APIKEY)
-
-            m = sendgrid.helpers.mail.Mail(Email(snd),
-                       nsubj,
-                       Email(rcpt),
-                       Content('text/plain',text)
-                       )
-            response = sg.client.mail.send.post(request_body=m.get())
-            status = response.status_code
-            assert status in [200,202],"status code is %s"%status # 202 - accepted, 200 - sandbox mode
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = nsubj
+            msg['From'] = snd
+            msg['To'] = rcpt
+            part = MIMEText(text,'plain')
+            msg.attach(part)
+            s = smtplib.SMTP('localhost')
+            s.sendmail(snd,rcpt,msg.as_string())
+            s.quit()
         notif = {'notified_at':datetime.datetime.now(),
                  'user':user,
                  'informed':rcpts}

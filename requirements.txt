@@ -1,6 +1,5 @@
 prettytable
 orgparse
-sendgrid
 -r noodles/requirements.txt
 paste
 celery

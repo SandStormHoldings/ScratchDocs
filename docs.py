@@ -28,6 +28,10 @@ import gc
 from couchdb import *
 from pg import get_new_idx,get_tags
 
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 P = init_conn()
 
 def gantt_info_row(grow,excl=('status','created_at','summary','parent_id','tid')):
@@ -517,7 +521,6 @@ def parse_change(t,body,descr=True):
     return subject
 
 def send_notification(whom,about,what,how=None,justverify=False,body={},nonotify=False):
-    import sendgrid # we import here because we don't want to force everyone installing this.
     assert cfg.RENDER_URL,"no RENDER_URL specified in config."
     assert cfg.SENDER,"no sender specified in config."
 
@@ -553,16 +556,22 @@ def send_notification(whom,about,what,how=None,justverify=False,body={},nonotify
     expname = tf.name.replace('.org','.html')
     #print 'written %s'%expname
     assert os.path.exists(expname)
-    s = sendgrid.Sendgrid(cfg.SENDGRID_USERNAME,cfg.SENDGRID_PASSWORD,secure=True)
     if body and body.get('authormail'):
         sender = body.get('authormail')
     else:
         sender = cfg.SENDER
     subject_utf8 = subject.encode('utf-8')
-    message = sendgrid.Message(sender,subject_utf8,open(tf.name).read(),open(expname).read())
+    message = MIMEMultipart('alternative')
+    message['subject'] = subject_utf8
+    message['From'] = sender
+    message['To'] = '%s <%s>'%(p[whom]['Name'],email)
+    part = MIMEText(ody,'html')
+    message.attach(part)
     message.add_to(email,p[whom]['Name'])
-    if not cfg.NONOTIFY and not nonotify: 
-        s.web.send(message)
+    if not cfg.NONOTIFY and not nonotify:
+        s = smtplib.SMTP('localhost')
+        s.sendmail(sender,email,message.as_string())
+        s.quit()
     return True
 
 def add_iteration(name,start_date=None,end_date=None):

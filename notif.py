@@ -172,7 +172,8 @@ def parse_diff(jps,o1,o2,maxlen,v1rev,v2rev,supress=False):
             lchange='cross_links=%s'%','.join(value)
         elif path=='/dependencies' and op=='add':
             lchange='dependencies=%s'%','.join(value)
-
+        elif re.compile('/journal/.*/attrs/work estimate$').search(path) and op=='replace':
+            lchange='work_estimate=%s'%value
         #removal
         elif lstre.search(path) and op=='remove':
             tkey = spl[1]

@@ -312,9 +312,13 @@ def get_revisions(C,tid,limit=None):
     for r in res:
         bnd= sorted(filter(lambda x:x,[r['sys_period'].lower,r['sys_period'].upper]))
         lower = bnd[0] ; upper = len(bnd)>1 and bnd[1] or None
-        k=(lower and lower.strftime(strfmt) or '')+'_'+(upper and upper.strftime(strfmt) or '')
+        k=(lower and str(lower) or '')+'_'+(upper and str(upper) or '')
         rt[k]=r
     return rt
 
 def last_change(C,tid):
     return get_revisions(C,tid,limit=2)
+
+def parse_last_change(C,tid):
+    r1,r2 = last_change(C,tid)
+    

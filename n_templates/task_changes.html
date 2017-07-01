@@ -19,8 +19,8 @@
     % if revc==prevc:
     <td colspan=2></td>
     % else:
-    <td><small>${d['v1rev']}</small></td>
-    <td><small>${d['v2rev']}</small></td>
+    <td><small><a href="${upr}/${t._id}/rev/${d['v1rev']}">${d['v1rev']}</a></small></td>
+    <td><small><a href="${upr}/${t._id}/rev/${d['v2rev']}">${d['v2rev']}</a></small></td>
     % endif
     <td>${d['changed_at']}</td>
     <td>${d['changed_by']}</td>

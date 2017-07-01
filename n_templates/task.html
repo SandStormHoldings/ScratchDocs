@@ -23,9 +23,12 @@ selected=1 \
 % if task._id:
 <h2 class="task-title">\
 ${self.icons(task.tags,'title-icon')}
-${task._id} - ${task['summary']}
+  ${task._id} - ${task['summary']}\
 <input class="btn btn-primary " type='button' value='reload' accesskey='r' onclick="location.reload()" />
 </h2>
+  % if rev:
+<small class='red'>showing rev <b>${rev}</b></small>
+  % endif
 <small><center>
 <%
    kprt = participants[:] ;
