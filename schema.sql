@@ -55,7 +55,7 @@ CREATE TABLE tasks (
     show_in_gantt boolean DEFAULT true,
     changed_at timestamp without time zone,
     changed_by character varying(32),
-    sys_period tstzrange NOT NULL
+    sys_period tstzrange DEFAULT tstzrange(now(), NULL::timestamp with time zone) NOT NULL
 );
 
 
@@ -326,13 +326,51 @@ CREATE VIEW task_hierarchy AS
 
 
 --
--- Name: task_tags; Type: VIEW; Schema: public; Owner: -
+-- Name: task_notifications; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE VIEW task_tags AS
- SELECT tasks.id,
-    jsonb_array_elements_text((tasks.contents -> 'tags'::text)) AS tag
-   FROM tasks;
+CREATE TABLE task_notifications (
+    task_id character varying NOT NULL,
+    sys_period tstzrange NOT NULL,
+    created_at timestamp without time zone DEFAULT now(),
+    details jsonb NOT NULL
+);
+
+
+--
+-- Name: tasks_history; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE tasks_history (
+    id character varying NOT NULL,
+    parent_id character varying,
+    contents jsonb,
+    show_in_gantt boolean,
+    changed_at timestamp without time zone,
+    changed_by character varying(32),
+    sys_period tstzrange NOT NULL
+);
+
+
+--
+-- Name: task_history_notifications; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW task_history_notifications AS
+ SELECT h.id,
+    h.sys_period,
+    n.created_at AS notified_at,
+    n.sys_period AS notification_period,
+    n.details AS notification
+   FROM (( SELECT t.id,
+            t.sys_period
+           FROM tasks t
+        UNION
+         SELECT h_1.id,
+            h_1.sys_period
+           FROM tasks_history h_1
+  ORDER BY 2 DESC) h
+     LEFT JOIN task_notifications n ON ((((h.id)::text = (n.task_id)::text) AND (lower(h.sys_period) = upper(n.sys_period)))));
 
 
 --
@@ -369,21 +407,6 @@ CREATE VIEW tasks_deps_hierarchy AS
     rel_tree.level,
     rel_tree.path_info
    FROM rel_tree;
-
-
---
--- Name: tasks_history; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE tasks_history (
-    id character varying NOT NULL,
-    parent_id character varying,
-    contents jsonb,
-    show_in_gantt boolean,
-    changed_at timestamp without time zone,
-    changed_by character varying(32),
-    sys_period tstzrange NOT NULL
-);
 
 
 --
