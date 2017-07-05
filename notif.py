@@ -90,7 +90,7 @@ def parse_diff(jps,o1,o2,maxlen,v1rev,v2rev,supress=False):
         if path in ['/branches','/journal','/links'] and op=='add' and value==[]:
             continue
         # this is a little digest we put aside inside the json, it is not a source of truth
-        if path.startswith('/journal_digest/'):
+        if path.startswith('/journal_digest'):
             continue
         if path=='/karma' and op=='add':
             chng=None
@@ -111,7 +111,7 @@ def parse_diff(jps,o1,o2,maxlen,v1rev,v2rev,supress=False):
 
 
         #journal is a special case
-        elif path.startswith('/journal') and op=='add':
+        elif path.startswith('/journal') and op=='add' and path!='/journal_digest':
             if type(value)==list:
                 vlist = value
             else:
@@ -291,21 +291,19 @@ def get_pending_notifications(C,tid=None):
     C.execute(qry,args)
     return C.fetchall()
 
-def main(C):
-
+def notification_logic(P,C,tid,supress,notify):
     from couchdb import Task
     from pg import get_children,revfmt
-    kwargs=dict([a.split('=') for a in sys.argv[1:] if '=' in a])
-    flags = list(set([a for a in sys.argv[1:] if '=' not in a]))
-    pns = get_pending_notifications(C,kwargs.get('tid'))
+    
+    pns = get_pending_notifications(C,tid)
     print('got',len(pns),'pending notifications.')
     for pn in pns:
         frev = revfmt(pn['sys_period'].lower,pn['sys_period'].upper)
         print('walking pending notification',frev)
         t = Task.get(C,pn['id'])
-        notifs = parse(C,[t],rev=frev,supress='supress' in flags)
+        notifs = parse(C,[t],rev=frev,supress=supress)
         print('walking',len(notifs),'notifs')
-        if 'notify' in flags:
+        if notify:
             done = False
             for nt in notifs:
                 done = t._notify(P,C,user='notify-trigger',lc=nt)
@@ -316,6 +314,15 @@ def main(C):
             args = (t._id,pn['sys_period'],json.dumps(notifs,default=datahandler))
             C.execute(qry,args)
             P.commit()
+    
+def main(C):
+    kwargs=dict([a.split('=') for a in sys.argv[1:] if '=' in a])
+    flags = list(set([a for a in sys.argv[1:] if '=' not in a]))
+    notification_logic(P,C,
+                       tid=kwargs.get('tid'),
+                       supress='supress' in flags,
+                       notify='notify' in flags
+    )
 
 
 if __name__=='__main__':

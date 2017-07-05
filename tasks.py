@@ -23,9 +23,8 @@ def db(function):
 @celery.task
 @db
 def notifications(adm,tid,P,C):
-    from couchdb import Task
-    t = Task.get(C,tid)
-    t._notify(P=P,C=C,user=adm)
+    from notif import notification_logic
+    notification_logic(P,C,tid=tid,supress=False,notify=True)
     
 
 @celery.task
