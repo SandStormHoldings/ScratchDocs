@@ -298,7 +298,9 @@ def get_tags(C):
     res = C.fetchall()
     return dict([(r['tag'],r['count']) for r in res])
 
-
+def revfmt(lower,upper):
+    k=(lower and str(lower) or '')+'_'+(upper and str(upper) or '')
+    return k
 def get_revisions(C,tid,limit=None):
     qry = "select * from tasks where id=%s union select * from tasks_history where id=%s order by sys_period desc"
     args = [tid,tid]
@@ -308,11 +310,9 @@ def get_revisions(C,tid,limit=None):
     C.execute(qry,args)
     res = C.fetchall()
     rt = {}
-    strfmt='%Y-%m-%dT%H:%I:%S'
     for r in res:
-        bnd= sorted(filter(lambda x:x,[r['sys_period'].lower,r['sys_period'].upper]))
-        lower = bnd[0] ; upper = len(bnd)>1 and bnd[1] or None
-        k=(lower and str(lower) or '')+'_'+(upper and str(upper) or '')
+        bnd=sorted(filter(lambda x:x,[r['sys_period'].lower,r['sys_period'].upper]))
+        k = revfmt(bnd[0],len(bnd)>1 and bnd[1] or None)
         rt[k]=r
     return rt
 

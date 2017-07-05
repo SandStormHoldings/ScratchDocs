@@ -370,7 +370,8 @@ CREATE VIEW task_history_notifications AS
             h_1.sys_period
            FROM tasks_history h_1
   ORDER BY 2 DESC) h
-     LEFT JOIN task_notifications n ON ((((h.id)::text = (n.task_id)::text) AND (lower(h.sys_period) = upper(n.sys_period)))));
+     LEFT JOIN task_notifications n ON ((((h.id)::text = (n.task_id)::text) AND (h.sys_period = n.sys_period))))
+  WHERE (upper(h.sys_period) IS NOT NULL);
 
 
 --
@@ -637,6 +638,14 @@ ALTER TABLE ONLY tracking
 
 
 --
+-- Name: task_notifications unq_id_sys_period; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY task_notifications
+    ADD CONSTRAINT unq_id_sys_period UNIQUE (task_id, sys_period);
+
+
+--
 -- Name: upw_tracking upw_tracking_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -656,6 +665,13 @@ CREATE INDEX assignee_idx ON tasks USING btree (((contents ->> 'assignee'::text)
 --
 
 CREATE INDEX created_at_idx ON tasks USING btree (((contents ->> 'created_at'::text)));
+
+
+--
+-- Name: dependencies_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX dependencies_idx ON tasks USING btree (((contents ->> 'dependencies'::text)));
 
 
 --

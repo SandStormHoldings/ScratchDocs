@@ -569,7 +569,7 @@ def send_notification(whom,about,what,how=None,justverify=False,body={},nonotify
     message.attach(part)
     message.add_to(email,p[whom]['Name'])
     if not cfg.NONOTIFY and not nonotify:
-        s = smtplib.SMTP('localhost')
+        s = smtplib.SMTP(cfg.SMTP_HOST)
         s.sendmail(sender,email,message.as_string())
         s.quit()
     return True

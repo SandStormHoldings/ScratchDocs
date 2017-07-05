@@ -8,6 +8,7 @@ import json
 import re
 import sys
 from collections import defaultdict
+from noodles.utils.datahandler import datahandler
 
 vers={}
 
@@ -179,7 +180,7 @@ def parse_diff(jps,o1,o2,maxlen,v1rev,v2rev,supress=False):
             tkey = spl[1]
             tidx = int(spl[2])
             try:
-                tval=(o1[tkey][tidx-1])
+                tval = o1[tkey][tidx] #raise Exception(o1[tkey][tidx])
             except IndexError:
                 print("cannot find",tkey,tidx,o2[tkey])
                 raise
@@ -204,6 +205,7 @@ def clean(o):
 
 
 def parse(C,ts,rev=None,supress=False,limit=None):
+    print('parse(%s,%s)'%([t._id for t in ts],rev))
     from couchdb import Task,get_children
     from pg import get_revisions
     rt=[]
@@ -211,14 +213,26 @@ def parse(C,ts,rev=None,supress=False,limit=None):
         doc = get_revisions(C,t._id,limit=limit)
         revs = list(doc.keys())
         revs.reverse()
+        if rev:
+            rs = rev.split('_')
+            try:
+                lower = [r for r in revs if r.startswith(rs[0])]
+                upper = [r for r in revs if r.startswith(rs[1])]
+                assert len(lower)==1 and len(upper)==1,"could not find %s in %s"%(rs,revs)
+                upper = upper[0]
+                lower = lower[0]
+            except IndexError:
+                print('cannot find shit in revs',len(revs))
+                raise
+
+            revs = [lower,upper]
         for i in range(0,len(revs)-1):
             v1rev = revs[i]
             v2rev = revs[i+1]
-            if rev and v1rev!=rev: continue
             try:
                 v1 = doc[v1rev]
                 v2 = doc[v2rev]
-            except: #ResourceNotFound:
+            except:
                 raise
                 print(t._id,v1rev,v2rev,json.dumps(['NOTFOUNDERR']))
                 continue
@@ -268,35 +282,41 @@ def parse(C,ts,rev=None,supress=False,limit=None):
 # 2. test the results for indicators such as length
 # grep -v NOTFOUND notifications-5.json | grep '"OK"' | sd/notif.py test | grep -v  _OK | sort -k5n
 
+def get_pending_notifications(C,tid=None):
+    qry="select * from task_history_notifications where notified_at is null"
+    args=[]
+    if tid:
+        qry+=" and  id=%s"
+        args.append(tid)
+    C.execute(qry,args)
+    return C.fetchall()
 
 def main(C):
 
     from couchdb import Task
-    from pg import get_children
-    if sys.argv[1]=='parse':
+    from pg import get_children,revfmt
+    kwargs=dict([a.split('=') for a in sys.argv[1:] if '=' in a])
+    flags = list(set([a for a in sys.argv[1:] if '=' not in a]))
+    pns = get_pending_notifications(C,kwargs.get('tid'))
+    print('got',len(pns),'pending notifications.')
+    for pn in pns:
+        frev = revfmt(pn['sys_period'].lower,pn['sys_period'].upper)
+        print('walking pending notification',frev)
+        t = Task.get(C,pn['id'])
+        notifs = parse(C,[t],rev=frev,supress='supress' in flags)
+        print('walking',len(notifs),'notifs')
+        if 'notify' in flags:
+            done = False
+            for nt in notifs:
+                done = t._notify(P,C,user='notify-trigger',lc=nt)
+                print('done=',done)
 
-        if len(sys.argv)>2:
-            ts = [Task.get(C,sys.argv[2])]+get_children(C,sys.argv[1])
-        else:
-            ts = Task.view('task/all')
-        parse(C,ts,len(sys.argv)>3 and sys.argv[3] or None)
-    elif sys.argv[1]=='test':
-        for ln in sys.stdin:
-            spl = ln.strip().split(" ")
-            tid = spl[0]
-            r1 = spl[1]
-            r2 = spl[2]
-            jn = " ".join(spl[3:])
-            j = json.loads(jn)
-            st,lch,sch = j
-            schs = "; ".join(sch)
-            if len(schs)>150:
-                print(tid,r1,r2,'SCHANGE_TOOLONG',len(schs))
-            else:
-                print(tid,r1,r2,'SCHANGE_OK',schs)
+            print('inserting notification confirmation')
+            qry = "insert into task_notifications (task_id,sys_period,created_at,details) values(%s,%s,now(),%s)"
+            args = (t._id,pn['sys_period'],json.dumps(notifs,default=datahandler))
+            C.execute(qry,args)
+            P.commit()
 
-    else:
-        raise Exception('argh')
 
 if __name__=='__main__':
     from docs import initvars,P

@@ -85,7 +85,9 @@ class Task(object):
             # last change
             lc = notif.parse(C,[self],supress=False,limit=2)
             if len(lc): lc=lc[0]
-        if not lc: return
+        if not lc:
+            print('dropping cause no lc')
+            return
         cnt = lc['lchanges_cnt']
         rev = lc['v2rev']
         lchanges = lc['lchanges']
@@ -94,12 +96,10 @@ class Task(object):
         #cnt,rev,lchanges,schanges,isnew = lc
         if not cnt or not len(lchanges):
             #print 'no notifications needed'
+            print('no lchanges, dropping')
             return
 
-        if not hasattr(self,'notifications'): self.notifications={}
-        if rev in self.notifications: return
         text = ("\n\n".join(lchanges))+"\n\n\n %s changes"%len(lchanges)
-
         imptags = set(['critical','priority','email','bug','ops'])
         imptstr = ",".join([impt.upper() for impt in imptags.intersection(set(self.tags))])
         nsubj = str(self.summary)+(imptstr and " [%s] "%imptstr or "")
@@ -136,6 +136,8 @@ class Task(object):
         if not len(rems):
             print('no recipients. breaking')
             return
+        text="this message is intended for %s\n"%(", ".join(rems))+text
+        if cfg.EMAIL_RECIPIENT_FORCE: rems=[cfg.EMAIL_RECIPIENT_FORCE]
         print('SENDING MAIL from %s TO %s with subject %s'%(snd,",".join(rems),nsubj))
 
         for rcpt in rems:
@@ -150,18 +152,15 @@ class Task(object):
             msg['To'] = rcpt
             part = MIMEText(text,'plain')
             msg.attach(part)
-            s = smtplib.SMTP('localhost')
+            s = smtplib.SMTP(cfg.SMTP_HOST)
             s.sendmail(snd,rcpt,msg.as_string())
             s.quit()
         notif = {'notified_at':datetime.datetime.now(),
                  'user':user,
                  'informed':rcpts}
         ts = Task.get(C,self._id)
-        if not hasattr(ts,'notifications'): ts.notifications={}
-        ts.notifications[rev]=notif
-        print('saving notification')
-        ts.save(P,C,user='notify-trigger',notify=False)
         print('done')
+        return True
 
         
 def push_views(d):
