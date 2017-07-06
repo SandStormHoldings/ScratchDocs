@@ -158,6 +158,8 @@ def parse_diff(jps,o1,o2,maxlen,v1rev,v2rev,supress=False):
             lchange='%s%s%s'%(fnp,opi,value)
         elif path in ['/tags','/informed'] and op=='add':
             lchange='%s=%s'%(fn,",".join(value))
+        elif path in ['/detail','/points'] and op=='remove':
+            continue
         #skip moving of elements in std lists
         elif path in '/id':
             continue
