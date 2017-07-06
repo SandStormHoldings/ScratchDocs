@@ -1117,25 +1117,14 @@ def rmlink(tsaves,tid,r):
         return True
     return False
 
-def get_karma_receivers():
+def get_karma_receivers(C):
     karma={}
-    for t in Task.view('task/karma_received'):
-        k = ','.join([t['key'][0],t['value'][0],t['key'][1]])
-        if k not in karma: karma[k]=0
-        karma[k]+=t['value'][1]
-    rt=[]
-    for k,points in list(karma.items()):
-        date,task,receiver = k.split(',')
-        rt.append({'date':date,
-                   'task':task,
-                   'receiver':receiver,
-                   'points':points})
-        
-    return sorted(rt,lambda x,y: cmp(x['date'],y['date']),reverse=True)
-    #return sorted([k for k in ],lambda x,y: cmp(x['key'][0],y['key'][0]),reverse=True)
-    
-def get_karma(date,user):
-    return [k for k in Task.view('task/karma',key=[date,user])]
+    C.execute("select id,dt,reciever,sum(points) points from karma group by id,dt,reciever order by dt desc")
+    return C.fetchall()
+
+def get_karma(C,date,user):
+    C.execute("select * from karma where reciever=%s and dt=%s",(user,date))
+    return C.fetchall()
 
 def deps_validate(C,tsaves,tid,deps):
     print(('deps_validate',tid,deps))

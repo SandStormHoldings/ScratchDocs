@@ -289,7 +289,7 @@ def karma(request,P,C):
     if not hasperm_db(C,adm,'karma'): return Error403('no sufficient permissions for %s'%adm)
 
     received={}
-    k = get_karma_receivers()
+    k = get_karma_receivers(C)
     return basevars(request,P,C,{'receivers':k})
 
 @ajax_response
@@ -476,7 +476,7 @@ def task(request,P,C,task,rev=None):
         kdt = datetime.datetime.now().date().strftime('%Y-%m-%d')
         nkarmaval = request.params.get('karma-plus') and 1 or -1
         # find out what's our expense for today
-        mykarma = sum([k['value'][1] for k in get_karma(kdt,adm)])
+        mykarma = sum([k['value'][1] for k in get_karma(C,kdt,adm)])
         if (nkarmaval>0 and mykarma<cfg.KARMA_POINTS_PER_DAY) or nkarmaval<0:
             if kdt not in karma: karma[kdt]={}
             if adm not in karma[kdt]: karma[kdt][adm]={}

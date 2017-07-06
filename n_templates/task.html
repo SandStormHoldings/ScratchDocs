@@ -253,11 +253,13 @@ ${taskmenu()}
   		                 rdarr[k2]+=el[1][k][k2]
 		         return rdarr
 		     karma = getattr(task,'karma',{})
-		     karmaflat = reduce(flatten,karma.items(),{}) %>
+		     karmaflat = reduce(flatten,karma.items(),{})
+		     %>
 		  <div class="controls">
 		    % if hasattr(task,'karma'):
 		    <ul class="unstyled">
-		      % for kpart,kval in sorted(karmaflat.items(),key=1,reverse=True):
+		      <% kfitems = sorted(karmaflat.items(),key=lambda x:x[1],reverse=True) %>
+		      % for kpart,kval in kfitems:
 		      <li>${kpart}: ${kval}</li>
 		      % endfor
 		    </ul>

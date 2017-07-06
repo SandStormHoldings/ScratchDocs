@@ -12,9 +12,9 @@
   </thead>
   % for k in receivers:
   <tr>
-    <td>${k['date']}</td>
-    <td><a href="${upr}/${k['task']}">${k['task']}</a></td>
-    <td>${k['receiver']}</td>
+    <td>${k['dt']}</td>
+    <td><a href="${upr}/${k['id']}">${k['id']}</a></td>
+    <td>${k['reciever']}</td>
     <td>${k['points']}</td>
     </tr>
   % endfor

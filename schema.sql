@@ -253,6 +253,37 @@ CREATE VIEW journal_entries AS
 
 
 --
+-- Name: karma; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW karma AS
+ WITH kgives AS (
+         WITH kdates AS (
+                 WITH ktl AS (
+                         SELECT tasks.id,
+                            jsonb_each((tasks.contents -> 'karma'::text)) AS obj
+                           FROM tasks
+                        )
+                 SELECT ktl.id,
+                    ((ktl.obj).key)::date AS dt,
+                    jsonb_each((ktl.obj).value) AS obj2
+                   FROM ktl
+                )
+         SELECT kdates.id,
+            kdates.dt,
+            (kdates.obj2).key AS giver,
+            jsonb_each((kdates.obj2).value) AS robj
+           FROM kdates
+        )
+ SELECT kgives.id,
+    kgives.dt,
+    kgives.giver,
+    (kgives.robj).key AS reciever,
+    (((kgives.robj).value)::text)::integer AS points
+   FROM kgives;
+
+
+--
 -- Name: participants; Type: TABLE; Schema: public; Owner: -
 --
 
