@@ -216,30 +216,32 @@ function all() {
 	init_and_run
 }
 
-if [[ "$0" != "bash" && "$0" != "-bash" ]] ; then
+if [[ "$1" == "--help" || "$1" == "help" || "$1" == "-h" ]] ; then
+    echo "#####################################################"    
+    echo "the following top level commands are available (view source for all):"
+    echo ""
+    echo "install_prerequisites # install packages on the host OS that we depend on."
+    echo "clean_all              # remove any existing docker containers, .pyc files, mako template caches."
+    echo "build                 # build our application image from the Dockerfile."
+    echo "pull_and_build        # download images and build our application image from the Dockerfile."
+    echo "init_and_run          # initialize with basic data and launch the containers."
+    echo ""
+    echo "in general, if you'd like to install from scratch, you need to run 'all', which consists of the following:"
+    echo ""
+    echo '0. clean_all # if you have any left overs lying about.'
+    echo "1. install_prerequisites"
+    echo "2. pull_and_build"
+    echo "3. init_and_run"
+    echo ""
+    echo "if, instead of initializing a fresh database, you'd like to restore from backups, you need to do something like this in place of step 3:"
+    echo ""
+    echo "3.a. storage_launch"
+    echo "3.b. storage_restore_dump pg.sql"
+    echo "3.c. launch_app"
+    echo "#####################################################"
+elif [[ "$0" != "bash" && "$0" != "-bash" ]] ; then
     all
     #echo "ERROR ($0): you must source this script first. $ source setup.sh"
 else
-echo "#####################################################"    
-echo "the following top level commands are available (view source for all):"
-echo ""
-echo "install_prerequisites # install packages on the host OS that we depend on."
-echo "clean_all              # remove any existing docker containers, .pyc files, mako template caches."
-echo "build                 # build our application image from the Dockerfile."
-echo "pull_and_build        # download images and build our application image from the Dockerfile."
-echo "init_and_run          # initialize with basic data and launch the containers."
-echo ""
-echo "in general, if you'd like to install from scratch, you need to run 'all', which consists of the following:"
-echo ""
-echo '0. clean_all # if you have any left overs lying about.'
-echo "1. install_prerequisites"
-echo "2. pull_and_build"
-echo "3. init_and_run"
-echo ""
-echo "if, instead of initializing a fresh database, you'd like to restore from backups, you need to do something like this in place of step 3:"
-echo ""
-echo "3.a. storage_launch"
-echo "3.b. storage_restore_dump pg.sql"
-echo "3.c. launch_app"
-echo "#####################################################"
+    echo "setup.sh sourced. run -h for help."
 fi

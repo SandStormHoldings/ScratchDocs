@@ -1,3 +1,5 @@
+create index if not exists dependencies_idx on tasks (((contents->>'dependencies')::text));
+
 create or replace view tasks_deps as
 select id tid,jsonb_array_elements_text(contents->'dependencies') depid from tasks;
 
