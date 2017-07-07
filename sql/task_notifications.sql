@@ -1,3 +1,6 @@
+create table if not exists task_notifications (task_id varchar not null,sys_period tstzrange not null,created_at timestamp default now(),details jsonb not null);
+create unique index if not exists notifications_unq on task_notifications (task_id,sys_period);
+
 create or replace view task_history_notifications as
 select h.*,
        n.created_at notified_at,

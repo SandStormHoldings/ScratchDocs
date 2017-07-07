@@ -243,5 +243,5 @@ elif [[ "$0" != "bash" && "$0" != "-bash" ]] ; then
     all
     #echo "ERROR ($0): you must source this script first. $ source setup.sh"
 else
-    echo "setup.sh sourced. run -h for help."
+    echo "# setup.sh sourced. run -h for help."
 fi
