@@ -354,10 +354,11 @@ def get_fns(C,assignee=None,created=None,handled_by=None,informed=None,status=No
         # tretvals = list(tretcands.values())
         # result = set(tretvals[0]).intersection(*tretvals)
         # trets.append([Task.get(r) for r in result])
-    if newer_than:
-        raise NotImplementedError('newer_than not impl')
     if recent:
-        raise NotImplementedError('recent not impl')
+        newer_than=14
+    if newer_than:
+        cnd+=" and (contents->>'created_at')::timestamp>=now()-interval '%s day'"
+        conds.append(newer_than)
     if not recurse:
         cnd+= ' and parent_id is null'
     print('QUERYING',qry+cnd,conds)
