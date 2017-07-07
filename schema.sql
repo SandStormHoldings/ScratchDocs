@@ -406,6 +406,16 @@ CREATE VIEW task_history_notifications AS
 
 
 --
+-- Name: task_tags; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW task_tags AS
+ SELECT tasks.id,
+    jsonb_array_elements_text((tasks.contents -> 'tags'::text)) AS tag
+   FROM tasks;
+
+
+--
 -- Name: tasks_deps; Type: VIEW; Schema: public; Owner: -
 --
 
