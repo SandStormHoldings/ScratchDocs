@@ -624,7 +624,7 @@ def task(request,P,C,task,rev=None):
                 btgts[tgt].append(br)
                 break
 
-    C.execute("select * from tasks_pri_comb where id=%s",(task,))
+    C.execute("select * from tasks_pri_comb_lean where id=%s",(task,))
     pri = C.fetchall()
     if len(pri):
         pr = pri[0]

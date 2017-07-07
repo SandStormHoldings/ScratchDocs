@@ -36,5 +36,5 @@ select p.*,
        coalesce(a.tot_pri,0) dep_pri,
        coalesce(p.tot_pri,0)+coalesce(a.tot_pri,0) comb_pri
 from tasks_pri_lean p
-left outer join tasks_pri_accum a on p.id=a.tid
+left outer join tasks_pri_accum_lean a on p.id=a.tid
 order by comb_pri desc

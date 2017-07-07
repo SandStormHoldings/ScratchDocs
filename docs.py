@@ -322,7 +322,7 @@ def intersect(*d):
 def get_fns(C,assignee=None,created=None,handled_by=None,informed=None,status=None,tag=None,recurse=True,query=None,newer_than=None,tids=None,recent=False):
     """return task filenames according to provided criteria"""
     #raise Exception(assignee,created,informed)
-    qry = "select * from tasks t,tasks_pri_comb p where t.id=p.id"
+    qry = "select * from tasks t,tasks_pri_comb_lean p where t.id=p.id"
     conds=[]
     trets=[]
     cnd=""

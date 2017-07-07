@@ -506,6 +506,39 @@ CREATE VIEW tasks_pri_accum AS
 
 
 --
+-- Name: tasks_pri_lean; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW tasks_pri_lean AS
+ SELECT t.id,
+    sum(COALESCE(g.pri, 0)) AS tot_pri,
+    count(*) AS cnt
+   FROM (tags g
+     RIGHT JOIN LATERAL ( SELECT t_1.id,
+            jsonb_array_elements_text((t_1.contents -> 'tags'::text)) AS tag
+           FROM tasks t_1
+        UNION
+         SELECT tasks.id,
+            NULL::text
+           FROM tasks) t ON (((g.name)::text = t.tag)))
+  GROUP BY t.id
+  ORDER BY (sum(COALESCE(g.pri, 0))) DESC;
+
+
+--
+-- Name: tasks_pri_accum_lean; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW tasks_pri_accum_lean AS
+ SELECT h.depid AS tid,
+    (sum(p.tot_pri) + (sum(h.level))::numeric) AS tot_pri,
+    array_agg(h.depid) AS depids
+   FROM (tasks_deps_hierarchy h
+     LEFT JOIN tasks_pri_lean p ON (((p.id)::text = (h.tid)::text)))
+  GROUP BY h.depid;
+
+
+--
 -- Name: tasks_pri_comb; Type: VIEW; Schema: public; Owner: -
 --
 
@@ -526,6 +559,21 @@ CREATE VIEW tasks_pri_comb AS
     ((COALESCE(p.tot_pri, (0)::bigint))::numeric + COALESCE(a.tot_pri, (0)::numeric)) AS comb_pri
    FROM (tasks_pri p
      LEFT JOIN tasks_pri_accum a ON (((p.id)::text = a.tid)))
+  ORDER BY ((COALESCE(p.tot_pri, (0)::bigint))::numeric + COALESCE(a.tot_pri, (0)::numeric)) DESC;
+
+
+--
+-- Name: tasks_pri_comb_lean; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW tasks_pri_comb_lean AS
+ SELECT p.id,
+    p.tot_pri,
+    p.cnt,
+    COALESCE(a.tot_pri, (0)::numeric) AS dep_pri,
+    ((COALESCE(p.tot_pri, (0)::bigint))::numeric + COALESCE(a.tot_pri, (0)::numeric)) AS comb_pri
+   FROM (tasks_pri_lean p
+     LEFT JOIN tasks_pri_accum_lean a ON (((p.id)::text = a.tid)))
   ORDER BY ((COALESCE(p.tot_pri, (0)::bigint))::numeric + COALESCE(a.tot_pri, (0)::numeric)) DESC;
 
 
@@ -669,14 +717,6 @@ ALTER TABLE ONLY tracking
 
 
 --
--- Name: task_notifications unq_id_sys_period; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY task_notifications
-    ADD CONSTRAINT unq_id_sys_period UNIQUE (task_id, sys_period);
-
-
---
 -- Name: upw_tracking upw_tracking_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -710,6 +750,13 @@ CREATE INDEX dependencies_idx ON tasks USING btree (((contents ->> 'dependencies
 --
 
 CREATE INDEX hby_idx ON tasks USING btree (((contents ->> 'handled_by'::text)));
+
+
+--
+-- Name: notifications_unq; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX notifications_unq ON task_notifications USING btree (task_id, sys_period);
 
 
 --
