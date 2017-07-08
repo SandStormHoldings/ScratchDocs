@@ -164,7 +164,7 @@ function removeTask() {
     <table>
     <thead>
     <tr>
-    <% cols = tasks[0].keys() %>
+    <% cols = len(tasks) and tasks[0].keys() or [] %>
     % for col in cols:
     <td>${col}</td>
     % endfor
