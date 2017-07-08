@@ -775,7 +775,7 @@ def global_journal(request,P,C,creator=None,day=None,groupby=None,state=None):
 @db
 def metastates(request,P,C,tags=''):
     tags = [ts for ts in tags.split(',') if ts!='']
-    unqkeys,unqtypes,unqtypes_nosuper = metastates_agg(tags_limit=tags)
+    unqkeys,unqtypes,unqtypes_nosuper = metastates_agg(C,tags_limit=tags)
 
     #assert unqtypes!=unqtypes_nosuper
     
@@ -787,7 +787,7 @@ def metastates(request,P,C,tags=''):
 @db
 def metastate(request,P,C,state,tags=''):
     tags = [ts for ts in tags.split(',') if ts!='']
-    res = metastates_qry(state,tags_limit=tags)
+    res = metastates_qry(C=C,arg=state,tags_limit=tags)
 
     excl=False
     if request.params.get('exclusive'):excl=True

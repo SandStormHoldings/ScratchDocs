@@ -345,7 +345,7 @@ def get_fns(C,assignee=None,created=None,handled_by=None,informed=None,status=No
         cnd+=""" and contents->'tags' @> '"%s"'"""
         conds.append(tag)
     if tids:
-        cnd+=" and id in %s"
+        cnd+=" and t.id in %s"
         conds.append(tuple(tids))
     if query:
         raise Exception('query unimpl')
@@ -1668,18 +1668,31 @@ def append_journal_entry(P,C,task,adm,content,metastates={},created_at=None):
     task.journal.append(item)
     task.save(P,C,user=adm)
 
-def metastates_agg(nosuper=True,tags_limit=[]):
+def metastates_agg(C,nosuper=True,tags_limit=[]):
     unqkeys={}
     unqtypes={}
     unqtypes_nosuper={}
-    ts = Task.view('task/metastates')
+
+    qry = "select * from journal_digest_attrs"
+    args = []
+    if tags_limit:
+        qry+=" where tags && ARRAY[%s]"
+        args.append(tuple(tags_limit))
+    C.execute(qry,args)        
+    ts = C.fetchall()
+
     cnt=0 ; col=[]
     for t in ts:
-        tags = set(t['value'][3])
+        tags = set(t['tags'])
         if len(tags_limit):
             inter = tags.intersection(set(tags_limit))
             if len(inter)<len(tags_limit): continue
-        kv = '='.join([t['key'][0].replace(' ','-'),t['key'][1].replace(' ','-')])
+        try:
+            kv = '='.join([str(t['attr_key']).replace(' ','-'),
+                           t['attr_value'].replace(' ','-')])
+        except TypeError:
+            print(t)
+            raise
         if t['id'] not in unqkeys: unqkeys[t['id']]=[]
         if kv not in unqkeys[t['id']]: 
             unqkeys[t['id']].append(kv)
@@ -1714,15 +1727,22 @@ def metastates_nosuper_qry(arg,its,unqkeys,unqtypes):
         #print 'after removal of',unqt,'we are left with',len(nosuper_rt)
     return nosuper_rt
 
-def metastates_qry(arg,nosuper=True,tags_limit=[]):
+def metastates_qry(C,arg,nosuper=True,tags_limit=[]):
     sets={}
-    conds = dict([k.split('=') for k in arg.replace('-',' ').split(',')])
+    try:
+        conds = dict([k.split('=') for k in arg.replace('-',' ').split(',')])
+    except ValueError:
+        print(arg,tags_limit)
+        raise
     for cnd,cndv in list(conds.items()):
-        ts = Task.view('task/metastates',key=[cnd,cndv])
+        qry = "select * from journal_digest_attrs where attr_key=%s and attr_value=%s"
+        args=[cnd,cndv]
+        C.execute(qry,args)
+        ts = C.fetchall()
         cndp = cnd.replace(' ','-')+' '+cndv.replace(' ','-')
         tids=[]
         for t in ts:
-            tags = set(t['value'][3])
+            tags = set(t['tags'])
             if len(tags_limit):
                 inter = tags.intersection(set(tags_limit))
                 if len(inter)<len(tags_limit): continue
@@ -1734,7 +1754,7 @@ def metastates_qry(arg,nosuper=True,tags_limit=[]):
     its = setvs[0].intersection(*setvs)
     #print len(its),'intersection items.'
     if nosuper:
-        unqkeys,unqtypes,_ = metastates_agg(nosuper=False)
+        unqkeys,unqtypes,_ = metastates_agg(C,nosuper=False)
         nosuper_rt = metastates_nosuper_qry(arg,its,unqkeys,unqtypes)
     else:
         nosuper_rt = ()

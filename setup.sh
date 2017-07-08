@@ -76,7 +76,8 @@ function envs_obtain() {
     
     PYHOST=$(docker inspect $NAME"_py" | jq '.[0].NetworkSettings.Networks.bridge.IPAddress' | sed 's/"//g')
     echo "PYHOST=$PYHOST"
-    }
+}
+
 function storage_launch() {
     echo '# RUNNING '$NAME'_REDIS' &&
     docker run -d "--name="$NAME"_redis" redis &&
@@ -121,14 +122,19 @@ function schema_save() {
     
 }
 
+function write_config() {
+    NUPPER="$(echo $NAME | awk '{print toupper($0)}')"    
+    envs_obtain &&
+    echo '# WRITING CONFIG' &&
+    docker run -u $IDU -ti --link $NAME"_redis" --link $NAME"_pg" -v $PWD":/home/tasks" --entrypoint=/home/tasks/docker/py/write_config.sh -e "PREFIX=$NUPPER" $NAME"/py"
+}
+
 function storage_populate() {
-    NUPPER="$(echo $NAME | awk '{print toupper($0)}')"
     envs_obtain &&
     echo '# LOADING POSTGRESQL DUMP' &&
     wait_for $PGHOST 5432 "pg" &&
     pv schema.sql | pgconn &&
-    echo '# WRITING CONFIG' &&
-    docker run -u $IDU -ti --link $NAME"_redis" --link $NAME"_pg" -v $PWD":/home/tasks" --entrypoint=/home/tasks/docker/py/write_config.sh -e "PREFIX=$NUPPER" $NAME"/py" &&
+    write_config &&
     storage_details_print
 }
 function celery_cmd() {
@@ -244,7 +250,7 @@ elif [[ "$0" != "bash" && "$0" != "-bash" ]] ; then
     if [[ "$1" != "" ]] ; then
 	NAME="$1"
 	fi
-    echo "# running setup.sh ALL. NAME=$NAME. you can also source this file and override NAME by providing it as the first arg."
+    echo "# commencing setup.sh ALL in 5 seconds. NAME=$NAME. source this file and/or override NAME by providing one as the first arg."
     sleep 5
     all
     #echo "ERROR ($0): you must source this script first. $ source setup.sh"
@@ -252,5 +258,5 @@ else
     if [[ "$1" != "" ]] ; then
 	NAME="$1"
 	fi
-    echo "# setup.sh sourced. NAME=$NAME run -h for help."
+    echo "# setup.sh sourced ; NAME=$NAME ; run -h for help."
 fi

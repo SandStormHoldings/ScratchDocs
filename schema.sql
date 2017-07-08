@@ -234,6 +234,38 @@ CREATE VIEW handlers AS
 
 
 --
+-- Name: task_tags; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW task_tags AS
+ SELECT tasks.id,
+    jsonb_array_elements_text((tasks.contents -> 'tags'::text)) AS tag
+   FROM tasks;
+
+
+--
+-- Name: journal_digest_attrs; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW journal_digest_attrs AS
+ WITH j AS (
+         SELECT tasks.id,
+            (tasks.contents ->> 'status'::text) AS status,
+            jsonb_each((tasks.contents -> 'journal_digest'::text)) AS d
+           FROM tasks
+          GROUP BY tasks.id, (tasks.contents ->> 'status'::text), (jsonb_each((tasks.contents -> 'journal_digest'::text)))
+        )
+ SELECT j.id,
+    j.status,
+    array_agg(t.tag) AS tags,
+    (j.d).key AS attr_key,
+    ((j.d).value ->> 'value'::text) AS attr_value
+   FROM (j
+     LEFT JOIN task_tags t ON (((j.id)::text = (t.id)::text)))
+  GROUP BY j.id, j.status, (j.d).key, ((j.d).value ->> 'value'::text);
+
+
+--
 -- Name: journal_entries; Type: VIEW; Schema: public; Owner: -
 --
 
@@ -250,6 +282,22 @@ CREATE VIEW journal_entries AS
             (tasks.contents ->> 'assignee'::text) AS assignee,
             (tasks.contents ->> 'status'::text) AS status
            FROM tasks) jes;
+
+
+--
+-- Name: journal_entries_attrs; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW journal_entries_attrs AS
+ SELECT journal_entries.tid,
+    journal_entries.created_at,
+    journal_entries.creator,
+    journal_entries.cnt,
+    (jsonb_each(journal_entries.attrs)).key AS attr_key,
+    (jsonb_each(journal_entries.attrs)).value AS attr_value,
+    journal_entries.assignee,
+    journal_entries.status
+   FROM journal_entries;
 
 
 --
@@ -403,16 +451,6 @@ CREATE VIEW task_history_notifications AS
   ORDER BY 2 DESC) h
      LEFT JOIN task_notifications n ON ((((h.id)::text = (n.task_id)::text) AND (h.sys_period = n.sys_period))))
   WHERE (upper(h.sys_period) IS NOT NULL);
-
-
---
--- Name: task_tags; Type: VIEW; Schema: public; Owner: -
---
-
-CREATE VIEW task_tags AS
- SELECT tasks.id,
-    jsonb_array_elements_text((tasks.contents -> 'tags'::text)) AS tag
-   FROM tasks;
 
 
 --

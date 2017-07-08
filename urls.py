@@ -42,8 +42,8 @@ def get_map():
         (URL_PREFIX+'/incoming/{tags:.*}','controllers#incoming'),
 
         (URL_PREFIX+'/metastates','controllers#metastates'),
-        (URL_PREFIX+'/metastates/tags-{tags:([^/]*)}/{state:.*}','controllers#metastate'),
-        (URL_PREFIX+'/metastates/tags-{tags:.*}','controllers#metastates'),
+        (URL_PREFIX+'/metastates/tags-{tags:([^\/]*)}/{state:.*}','controllers#metastate'),
+        (URL_PREFIX+'/metastates/tags-{tags:([^\/]*)}','controllers#metastates'),
         (URL_PREFIX+'/metastates/{state:.*}','controllers#metastate'),
         
         (URL_PREFIX+'/feed', 'controllers#feed'),
