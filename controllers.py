@@ -1114,26 +1114,6 @@ def history(request,task):
     rt = basevars(request,P,C,{'op':op,'task':t,'request':request})
     return rt
 
-def feed_worker(request,user=None):
-    if not user: user = get_admin(request,'unknown')
-    r = redis.Redis('localhost')
-    f = r.get('feed_'+user)
-    if not f: f='[]'
-    lf = json.loads(f)
-    nw = datetime.datetime.now()
-    for fe in lf:
-        fe['when'] = datetime.datetime.strptime( fe['when'], "%Y-%m-%dT%H:%M:%S" )
-        fe['delta'] = nw - fe['when']
-    return {'feed':lf,'gwu':cfg.GITWEB_URL,'docs_repo':cfg.DOCS_REPONAME}
-
-@render_to('feed_ajax.html')
-def feed(request,user=None):
-    return feed_worker(request,user)
-
-@render_to('feed_fs.html')
-def feed_fs(request,user=None):
-    return feed_worker(request,user)
-
 @ajax_response
 @db
 def show_in_gantt(request,P,C,task):

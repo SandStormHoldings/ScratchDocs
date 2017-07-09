@@ -31,16 +31,7 @@ $(function() {
             }
         },'json');
     });
-   function getfeed() {
-     $.get('/feed',function(c) {
-         $('#feed').html(c);
 
-});
-   window.setTimeout(getfeed,10000);
-}
-% if feed:
-getfeed();
-% endif
 });
 
         </script>
@@ -65,7 +56,6 @@ getfeed();
                     <li><a accesskey="q" href="${upr}/q">merge <b>q</b>ueue</a></li>
                     <li><a href="${upr}/pl">planning queue</a></li>
                     <li><a href="${upr}/pr">production queue</a></li>
-                  <li><a href="${upr}/feed/fs">actions feed</a></li>
 		  % if hasperm('karma'):
 		  <li><a href="${upr}/karma">karma</a></li>
 		  % endif
