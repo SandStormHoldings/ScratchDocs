@@ -458,6 +458,7 @@ def task(request,P,C,task,rev=None):
         if k.startswith('cross_link-'):
             cln = k.replace('cross_link-','')
             cross_links.append(cln)
+            #print('adding cross_link',cln,'due to',k,v)
         if k.startswith('dependency-'):
             dln = k.replace('dependency-','')
             dependencies.append(dln)

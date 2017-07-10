@@ -261,9 +261,14 @@ def get_children(C,tid):
     return rt
 
 def get_cross_links(C,tid):
-    C.execute("select clid from cross_links where id=%s",(tid,))
+    C.execute("select * from cross_links where id=%s or clid=%s",(tid,tid))
     rt = C.fetchall()
-    return [r['clid'] for r in rt]
+    rt2=[]
+    for r in rt:
+        rt2.append(r['clid'])
+        rt2.append(r['id'])
+    rt2 = [r for r in rt2 if r!=tid]
+    return rt2
 
 def get_new_idx(C,parent=None):
     if parent==None:

@@ -285,6 +285,7 @@ def parse(C,ts,rev=None,supress=False,limit=None):
 # grep -v NOTFOUND notifications-5.json | grep '"OK"' | sd/notif.py test | grep -v  _OK | sort -k5n
 
 def get_pending_notifications(C,tid=None):
+    print('get_pending_notifications(%s)'%tid)
     qry="select * from task_history_notifications where notified_at is null"
     args=[]
     if tid:
@@ -296,7 +297,7 @@ def get_pending_notifications(C,tid=None):
 def notification_logic(P,C,tid,supress,notify):
     from couchdb import Task
     from pg import get_children,revfmt
-    
+
     pns = get_pending_notifications(C,tid)
     print('got',len(pns),'pending notifications.')
     for pn in pns:

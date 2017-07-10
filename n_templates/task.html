@@ -176,9 +176,9 @@ ${taskmenu()}
                     <label class="control-label">Cross-links</label>
                     <div class="controls">
                       add: <input type='text' name="add-cross_link" /><br />
-                      <input type="hidden" name="cross_links" value="${",".join(["-".join(i) for i in cross_links])}" />
+                      <input type="hidden" name="cross_links" value="${",".join([task._id+"-"+i for i in cross_links])}" />
 		      % for cl in cross_links:
-		       <input type='checkbox' name='cross_link-${cl[1]}' checked=1 value=1 /> <a href="${upr}/${cl[1]}">${cl[1]}</a> : ${get_task(cl[1]).summary}<br />
+		      <input type='checkbox' name='cross_link-${cl}' checked=1 value=1 /> <a href="${upr}/${cl}">${cl}</a> : ${get_task(cl).summary}<br />
 		      % endfor
                     </div>
                 </div>

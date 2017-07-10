@@ -1100,7 +1100,7 @@ def addlink(C,tsaves,tid,r):
     if tid not in tsaves: tsaves[tid]=get_task(C,tid)
     assert r>tid,"%s>%s ?"%(r,tid)
     t = tsaves[tid]
-    if 'cross_links' not in t:
+    if 'cross_links' not in t.__dict__:
         t.cross_links=[]
     if r not in t.cross_links:
         tcheck = get_task(C,r)
@@ -1109,10 +1109,10 @@ def addlink(C,tsaves,tid,r):
         return True
     return False
 
-def rmlink(tsaves,tid,r):
-    if tid not in tsaves: tsaves[tid]=get_task(tid)
+def rmlink(C,tsaves,tid,r):
+    if tid not in tsaves: tsaves[tid]=get_task(C,tid)
     t = tsaves[tid]
-    if 'cross_links' in t and r in t.cross_links:
+    if t['cross_links'] and r in t.cross_links:
         print('task.%s -> -%s'%(t._id,r))
         t.cross_links.remove(r)
         return True
@@ -1169,21 +1169,21 @@ def rewrite(P,C,tid,o_params={},safe=True,user=None,fetch_stamp=None):
     deps = list(set(o_params['dependencies']))
     t = tsaves[tid]
 
-    
-    e = [ce.split("-") for ce in o_params['cross_links_raw'].split(",") if ce!='']
 
+    #raise Exception('clr',o_params['cross_links_raw'])
+    e = [ce.split("-") for ce in o_params['cross_links_raw'].split(",") if ce!='']
     #remove previous cross links
     for cxa in e:
         cxas = sorted(cxa)
         assert len(cxas)==2,"%s wrong length"%cxas
-        rmlink(tsaves,cxas[0],cxas[1])
+        rmlink(C,tsaves,cxas[0],cxas[1])
     
     #because cross links are bidirectional, we want to always set them on the lower of the pair,
     #the view Task/crosslinks allows us to see the crosslink from both its ends
 
     clpairs = [sorted([tid,cli]) for cli in clinks]
     for clk,cld in clpairs:
-        addlink(tsaves,clk,cld)
+        addlink(C,tsaves,clk,cld)
 
     params = {
               'status':t['status'],
