@@ -47,7 +47,7 @@ def shorten(value,maxlen=30):
 
     return sval
 
-def parse_diff(jps,o1,o2,maxlen,v1rev,v2rev,supress=False):
+def parse_diff(jps,o1,o2,maxlen,v1rev,v2rev,supress=False,supress_hard=False):
     schanges=[] ; lchanges=[] ; cnt=0
     new_task=False
     for jp in jps:
@@ -83,117 +83,127 @@ def parse_diff(jps,o1,o2,maxlen,v1rev,v2rev,supress=False):
         fnp = fn.split('.')[0]
 
 
+        try:
+            if op=='add' and value==None: continue
+            if path in ['/external_thread_id','/created_at','/path','/cross_links_raw']: continue
+            #karma is a special case
+            if path in ['/branches','/journal','/links'] and op=='add' and value==[]:
+                continue
+            # this is a little digest we put aside inside the json, it is not a source of truth
+            if path.startswith('/journal_digest'):
+                continue
+            if path=='/karma' and op=='add':
+                chng=None
+                for dt,kv in list(value.items()):
+                    trcv=defaultdict(int)
+                    for giver,krcvs in list(kv.items()):
+                        for rcv,pts in list(krcvs.items()):
+                            trcv[rcv]+=pts
+                    chng = ",".join(["%s+=%s"%(k,v) for k,v in list(trcv.items())])
+                if not chng: continue
+                lchange='karma(%s)'%chng
 
-        if op=='add' and value==None: continue
-        if path in ['/external_thread_id','/created_at','/path','/cross_links_raw']: continue
-        #karma is a special case
-        if path in ['/branches','/journal','/links'] and op=='add' and value==[]:
-            continue
-        # this is a little digest we put aside inside the json, it is not a source of truth
-        if path.startswith('/journal_digest'):
-            continue
-        if path=='/karma' and op=='add':
-            chng=None
-            for dt,kv in list(value.items()):
-                trcv=defaultdict(int)
-                for giver,krcvs in list(kv.items()):
-                    for rcv,pts in list(krcvs.items()):
-                        trcv[rcv]+=pts
-                chng = ",".join(["%s+=%s"%(k,v) for k,v in list(trcv.items())])
-            if not chng: continue
-            lchange='karma(%s)'%chng
-
-        elif path in ['/_id'] and op=='add':
-            lchange='tid=%s'%value
-            new_task=True
-        elif path.startswith('/karma/') and op=='add':
-            lchange='karma(%s+=%s)'%(path.split('/')[-1],value)
+            elif path in ['/_id'] and op=='add':
+                lchange='tid=%s'%value
+                new_task=True
+            elif path.startswith('/karma/') and op=='add':
+                lchange='karma(%s+=%s)'%(path.split('/')[-1],value)
 
 
-        #journal is a special case
-        elif path.startswith('/journal') and op=='add' and path!='/journal_digest':
-            if type(value)==list:
-                vlist = value
-            else:
-                vlist = [value]
-            cont=''
-            for value in vlist:
-                creators=[]
-                if not len(value['content'].strip()):
-                    cont+=" "+(','.join(['%s=%s'%(k,v) for k,v in list(value['attrs'].items())]))
+            #journal is a special case
+            elif path.startswith('/journal') and op=='add' and path!='/journal_digest':
+                if type(value)==list:
+                    vlist = value
                 else:
-                    cont+=" "+(shorten(value['content'],maxlen))
-                if value['creator'] not in creators: creators.append(value['creator'])
-            lchange='journal+=%s(%s)'%(cont,",".join(set(creators)))
+                    vlist = [value]
+                cont=''
+                for value in vlist:
+                    creators=[]
+                    if not len(value['content'].strip()):
+                        cont+=" "+(','.join(['%s=%s'%(k,v) for k,v in list(value['attrs'].items())]))
+                    else:
+                        cont+=" "+(shorten(value['content'],maxlen))
+                    if value['creator'] not in creators: creators.append(value['creator'])
+                lchange='journal+=%s(%s)'%(cont,",".join(set(creators)))
 
-        elif path.startswith('/links/') and (op in ['add'] or (op=='replace' and len(spl)==3)):
-            if op=='add': lval=(urlshorten(value['url'],True),value['anchor'])
-            elif op=='replace': lval=(urlshorten(value['url'],True),value['anchor'])
-            lchange='links+=%s(%s)'%lval
-        elif path in ['/links'] and op=='add':
-            lval = (urlshorten(value[0]['url']),value[0]['anchor'])
-            lchange='links+=%s(%s)'%lval
-        elif path.startswith('/links/') and op in ['replace'] and len(spl)==4:
-            try:
+            elif path.startswith('/links/') and (op in ['add'] or (op=='replace' and len(spl)==3)):
+                if op=='add': lval=(urlshorten(value['url'],True),value['anchor'])
+                elif op=='replace': lval=(urlshorten(value['url'],True),value['anchor'])
+                lchange='links+=%s(%s)'%lval
+            elif path in ['/links'] and op=='add':
+                lval = (urlshorten(value[0]['url']),value[0]['anchor'])
+                lchange='links+=%s(%s)'%lval
+            elif path.startswith('/links/') and op in ['replace'] and len(spl)==4:
+                try:
+                    lkey = int(spl[2])
+                    lfld = spl[3]
+                except IndexError:
+                    print(jp)
+                    raise 
+                except Exception as e:
+                    raise
+                if lfld=='url': lidx='anchor'
+                elif lfld=='anchor': lidx='url'
+                else: raise Exception('unknown lfld %s'%lfld)
+                lchange='links(%s)=%s'%(o1['links'][lkey][lidx],value)
+            elif path.startswith('/links/') and op=='remove':
                 lkey = int(spl[2])
-                lfld = spl[3]
-            except IndexError:
-                print(jp)
-                raise 
-            except Exception as e:
-                raise
-            if lfld=='url': lidx='anchor'
-            elif lfld=='anchor': lidx='url'
-            else: raise Exception('unknown lfld %s'%lfld)
-            lchange='links(%s)=%s'%(o1['links'][lkey][lidx],value)
-        elif path.startswith('/links/') and op=='remove':
-            lkey = int(spl[2])
-            try:
-                l = o2['links'][lkey-1]
-            except IndexError:
-                raise
-            lchange='links-=%s(%s)'%(l['anchor'],urlshorten(l['url'],True))
-        #appending/replace lists
-        elif lstre.search(path) and op in ['add','replace']:
-            lchange='%s%s%s'%(fnp,opi,value)
-        elif path in ['/tags','/informed'] and op=='add':
-            lchange='%s=%s'%(fn,",".join(value))
-        elif path in ['/detail','/points'] and op=='remove':
-            continue
-        #skip moving of elements in std lists
-        elif path in '/id':
-            continue
-        elif lstre.search(path) and op=='move':
-            continue
-        #initial assigning
-        elif fn in ['unstructured','content','assignee','summary','status','handled_by','creator']:
-            sval = shorten(value,maxlen)
-            lchange='%s=%s'%(fn,sval)
+                try:
+                    l = o1['links'][lkey-1]
+                except IndexError:
+                    print('could not understand what happened to links',lkey,jp)
+                    print('o2',o2['links'])
+                    print('o1',o1['links'])
+                    raise
+                lchange='links-=%s(%s)'%(l['anchor'],urlshorten(l['url'],True))
+            #appending/replace lists
+            elif lstre.search(path) and op in ['add','replace']:
+                lchange='%s%s%s'%(fnp,opi,value)
+            elif path in ['/tags','/informed'] and op=='add':
+                lchange='%s=%s'%(fn,",".join(value))
+            elif path in ['/detail','/points'] and op=='remove':
+                continue
+            #skip moving of elements in std lists
+            elif path in '/id':
+                continue
+            elif lstre.search(path) and op=='move':
+                continue
+            #initial assigning
+            elif fn in ['unstructured','content','assignee','summary','status','handled_by','creator']:
+                sval = shorten(value,maxlen)
+                lchange='%s=%s'%(fn,sval)
 
-        #initial appending of cross links
-        elif path=='/cross_links' and op=='add':
-            lchange='cross_links=%s'%','.join(value)
-        elif path=='/dependencies' and op=='add':
-            lchange='dependencies=%s'%','.join(value)
-        elif re.compile('/journal/.*/attrs/work estimate$').search(path) and op=='replace':
-            lchange='work_estimate=%s'%value
-        #removal
-        elif lstre.search(path) and op=='remove':
-            tkey = spl[1]
-            tidx = int(spl[2])
-            try:
-                tval = o1[tkey][tidx] #raise Exception(o1[tkey][tidx])
-            except IndexError:
-                print("cannot find",tkey,tidx,o2[tkey])
-                raise
-            except Exception as e:
-                raise
-            lchange='%s-=%s'%(fn,tval)
-        elif supress:
-            lchange='(unparsed)'+json.dumps(jp)
-        else:
-            raise Exception(fn,jp,v1rev,v2rev)
-        lchanges.append(lchange)
+            #initial appending of cross links
+            elif path=='/cross_links' and op=='add':
+                lchange='cross_links=%s'%','.join(value)
+            elif path=='/dependencies' and op=='add':
+                lchange='dependencies=%s'%','.join(value)
+            elif re.compile('/journal/.*/attrs/work estimate$').search(path) and op=='replace':
+                lchange='work_estimate=%s'%value
+            #removal
+            elif lstre.search(path) and op=='remove':
+                tkey = spl[1]
+                tidx = int(spl[2])
+                if set(o1[tkey])==set(o2[tkey]): # they are fucking equal, just the order changed.
+                    continue
+                try:
+                    tval = o2[tkey][tidx-1] #raise Exception(o1[tkey][tidx])
+                except IndexError:
+                    print("cannot find",tkey,tidx,jp)
+                    print('o1',o1[tkey])
+                    print('o2',o2[tkey])
+                    raise
+                except Exception as e:
+                    raise
+                lchange='%s-=%s'%(fn,tval)
+            elif supress:
+                lchange='(unparsed)'+json.dumps(jp)
+            else:
+                raise Exception(fn,jp,v1rev,v2rev)
+            lchanges.append(lchange)
+        except Exception as e:
+            lchanges.append('(unparsed_hard)'+json.dumps(jp))
+            if not supress_hard: raise
         
     return cnt,list(set(lchanges)),new_task
 
@@ -206,7 +216,7 @@ def clean(o):
             del je['created_at']
 
 
-def parse(C,ts,rev=None,supress=False,limit=None):
+def parse(C,ts,rev=None,supress=False,limit=None,supress_hard=False):
     print('parse(%s,%s)'%([t._id for t in ts],rev))
     from couchdb import Task,get_children
     from pg import get_revisions
@@ -248,8 +258,8 @@ def parse(C,ts,rev=None,supress=False,limit=None):
                 continue
             if jps:
                 try:
-                    lcnt,lchanges,nt = parse_diff(jps,j1,j2,maxlen=30,v1rev=v1rev,v2rev=v2rev,supress=supress)
-                    scnt,schanges,nt = parse_diff(jps,j1,j2,maxlen=10,v1rev=v1rev,v2rev=v2rev,supress=supress)
+                    lcnt,lchanges,nt = parse_diff(jps,j1,j2,maxlen=30,v1rev=v1rev,v2rev=v2rev,supress=supress,supress_hard=supress_hard)
+                    scnt,schanges,nt = parse_diff(jps,j1,j2,maxlen=10,v1rev=v1rev,v2rev=v2rev,supress=supress,supress_hard=supress_hard)
                     rt.append({'tid':t._id,
                                'lchanges_cnt':lcnt,
                                'lchanges':lchanges,
