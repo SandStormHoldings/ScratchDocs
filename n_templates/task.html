@@ -178,7 +178,7 @@ ${taskmenu()}
                       add: <input type='text' name="add-cross_link" /><br />
                       <input type="hidden" name="cross_links" value="${",".join([task._id+"-"+i for i in cross_links])}" />
 		      % for cl in cross_links:
-		      <input type='checkbox' name='cross_link-${cl}' checked=1 value=1 /> <a href="${upr}/${cl}">${cl}</a> : ${get_task(cl).summary}<br />
+		      <input type='checkbox' name='cross_link-${cl}' checked=1 value=1 /> <a href="${upr}/${cl}">${cl}</a> : ${summaries[cl]}<br />
 		      % endfor
                     </div>
                 </div>
@@ -189,7 +189,7 @@ ${taskmenu()}
                       add: <input type='text' name="add-dependency" /><br />
                       <input type="hidden" name="dependencies" value="${",".join(["-".join(i) for i in dependencies])}" />
 		      % for cl in dependencies:
-		       <input type='checkbox' name='dependency-${cl}' checked=1 value=1 /> <a href="${upr}/${cl}">${cl}</a> : ${get_task(cl).summary}<br />
+		      <input type='checkbox' name='dependency-${cl}' checked=1 value=1 /> <a href="${upr}/${cl}">${cl}</a> : ${summaries[cl]}<br />
 		      % endfor
                     </div>
                 </div>
@@ -200,7 +200,7 @@ ${taskmenu()}
                     <div class="controls">
 		      <ul>
 		      % for cl in fulldeps:
-		      <li><a href="${upr}/${cl['depid']}">${cl['depid']}</a>: ${get_task(cl['depid']).summary} (${" <- ".join(cl['path_info'])})</li>
+		      <li><a href="${upr}/${cl['depid']}">${cl['depid']}</a>: ${summaries[cl['depid']]} (${" <- ".join(cl['path_info'])})</li>
 		      % endfor
 		      </ul>
                     </div>
@@ -213,7 +213,7 @@ ${taskmenu()}
                     <div class="controls">
 		      <ul>
 		      % for cl in dependants:
-		      <li><a href="${upr}/${cl['tid']}">${cl['tid']}</a>: ${get_task(cl['tid']).summary} (${" <- ".join(cl['path_info'][:-1])})</li>
+		      <li><a href="${upr}/${cl['tid']}">${cl['tid']}</a>: ${summaries[cl['tid']]} (${" <- ".join(cl['path_info'][:-1])})</li>
 		      % endfor
 		      </ul>
                     </div>

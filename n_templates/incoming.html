@@ -45,7 +45,7 @@ ${tsum(t)}</td>
     <td>${s}</td>
     <td>
       % for cl in getattr(t,'cross_links',[]):
-      <a href="${upr}/${cl}">${cl}</a>: ${tsum(get_task(cl))}<br />
+      <a href="${upr}/${cl}">${cl}</a>: ${summaries[cl]}<br />
       % endfor
     </td>
     <td>${t.status}</td>

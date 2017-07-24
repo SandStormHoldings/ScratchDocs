@@ -639,6 +639,15 @@ def task(request,P,C,task,rev=None):
     fulldeps = [d for d in C.fetchall() if d['depid'] not in dependencies]
     C.execute("select tid,path_info from tasks_deps_hierarchy where depid=%s",(t._id,))
     dependants = [d for d in C.fetchall()]
+    tup = tuple(cross_links_raw+
+                [d['tid'] for d in dependants]+
+                [d for d in dependencies]+
+                [fd['depid'] for fd in fulldeps])
+    if len(tup):
+        C.execute("select id id,contents->>'summary' summary from tasks where id in %s",(tup,))
+        summaries = dict([(r['id'],r['summary']) for r in C.fetchall()])
+    else:
+        summaries={}
 
     return basevars(request,P,C,{'task':t,
                                  'rev':rev,
@@ -649,7 +658,7 @@ def task(request,P,C,task,rev=None):
                                  'gantt_labels':gantt_labels,
                                  'zerodelta':zerodelta,
                                  'branches_by_target':btgts,
-                                 'get_task':partial(get_task,C),
+                                 'summaries':summaries,
                                  'cross_links':cross_links_raw,
                                  'dependencies':dependencies,
                                  'fulldeps':fulldeps,
@@ -810,14 +819,24 @@ def incoming(request,P,C,tags=[],limit=300):
     adm = get_admin(request,'unknown')    
     newer_than = (datetime.datetime.now()-datetime.timedelta(days=14)).strftime('%Y-%m-%dT%H:%M:%S')
     t = get_latest(C,tags=tags,newer_than=newer_than,limit=limit)
+    cls = []
+    for chat,ta,_,cr,s,jlen in t:
+        if 'cross_links' in ta.__dict__: cls+=ta['cross_links']
+    cls = tuple(set(cls))
+    if len(cls):
+        C.execute("select id id,contents->>'summary' summary from tasks where id in %s",(cls,))
+        summaries = dict([(r['id'],r['summary']) for r in C.fetchall()])
+    else:
+        summaries={}
+        
     return basevars(request,P,C,{'tasks':t,
-                             'now':datetime.datetime.now(),
-                             'humanize':humanize,
-                             're':re,
-                             'user':adm,
-                             'tags':tags,
-                             'newer_than':newer_than,
-                             'get_task':partial(get_task,C)
+                                 'now':datetime.datetime.now(),
+                                 'humanize':humanize,
+                                 're':re,
+                                 'user':adm,
+                                 'tags':tags,
+                                 'newer_than':newer_than,
+                                 'summaries':summaries,
     })
 
 @ajax_response

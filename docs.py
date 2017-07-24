@@ -288,17 +288,23 @@ def filterby(fieldname,value,rtl):
 
 def get_latest(C,tags='email',newer_than=None,limit=300):
     nt = datetime.datetime.strptime(newer_than.translate({None: ':-'}), "%Y-%m-%dT%H:%M:%S")
-    args = (tuple(tags),nt,limit,) #set(tags) ,limit)
+    args = []
     qry = """select je.* 
 from 
 journal_entries je,
 task_tags t 
 where 
-t.tag in %s and
-je.tid=t.id and 
+1=1"""
+    if tags:
+        qry+="t.tag in %s"
+        conds.append(tuple(tags))
+
+    qry+="""and je.tid=t.id and 
 je.created_at>=%s 
 order by je.created_at desc 
 limit %s"""
+    args+=[nt,limit]
+    
     C.execute(qry,args)
     tv = C.fetchall()
     trets = [(t['created_at'],
