@@ -297,7 +297,7 @@ where
 1=1"""
     if tags:
         qry+="t.tag in %s"
-        conds.append(tuple(tags))
+        args.append(tuple(tags))
 
     qry+="""and je.tid=t.id and 
 je.created_at>=%s 
