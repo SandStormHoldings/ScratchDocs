@@ -299,7 +299,7 @@ where
         qry+="t.tag in %s"
         args.append(tuple(tags))
 
-    qry+="""and je.tid=t.id and 
+    qry+=""" and je.tid=t.id and 
 je.created_at>=%s 
 order by je.created_at desc 
 limit %s"""
