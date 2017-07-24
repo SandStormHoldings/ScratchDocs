@@ -296,7 +296,7 @@ task_tags t
 where 
 1=1"""
     if tags:
-        qry+="t.tag in %s"
+        qry+=" and t.tag in %s"
         args.append(tuple(tags))
 
     qry+=""" and je.tid=t.id and 
