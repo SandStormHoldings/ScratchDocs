@@ -83,10 +83,10 @@ function storage_launch() {
     docker run -d "--name="$NAME"_redis" redis &&
     echo '# RUNNING POSTGRESQL' &&     PW="passw0rd" #$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 6 | head -n 1)
     docker run -d --env 'USERMAP_UID='$IDU --env 'DB_NAME=tasks' --env 'DB_USER=tasks' --env 'DB_PASS='$PW "--name="$NAME"_pg" -v $PWD"/docker/pg/data:/var/lib/postgresql" $NAME"/pg" &&
+    envs_obtain &&
     wait_for $PGHOST 5432 "pg"
     echo "# INSTALLING PG EXTENSION" &&
     docker exec -ti $NAME"_pg" /extensions.sh &&
-    envs_obtain &&
     wait_for $REDISHOST 6379 "redis"
     
 }
