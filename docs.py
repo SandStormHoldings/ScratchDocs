@@ -354,12 +354,12 @@ def get_fns(C,assignee=None,created=None,handled_by=None,informed=None,status=No
         cnd+=" and t.id in %s"
         conds.append(tuple(tids))
     if query:
-        raise Exception('query unimpl')
-        # qitems = [q.strip().lower() for q in query.split(' ') if len(q.strip())]
-        # tretcands = dict([(qi,[r['value'][0] for r in Task.view('task/index',key=qi)]) for qi in qitems])
-        # tretvals = list(tretcands.values())
-        # result = set(tretvals[0]).intersection(*tretvals)
-        # trets.append([Task.get(r) for r in result])
+        qitems = [q.strip().lower() for q in query.split(' ') if len(q.strip())]
+        cndps = ['contents::text ilike %s' for q in qitems]
+        cndvs = ['%'+q+'%' for q in qitems]
+        cnd+=" and (%s)"%" or ".join(cndps)
+        for q in cndvs:
+            conds.append(q)
     if recent:
         newer_than=14
     if newer_than:
