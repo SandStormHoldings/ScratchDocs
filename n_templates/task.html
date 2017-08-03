@@ -77,7 +77,6 @@ ${"%s remaining"%remaining_hours}\
 <hr />
 </%def>
 <%def name="content()">
-
 <form id="taskForm" method='post' class="form-horizontal">
 <input type="hidden" name="changed_at" value="${changed_at}" />
 ${taskmenu()}
@@ -385,7 +384,9 @@ for tgt,branches in branches_by_target.items():
                                 </div>
                                 % endif
                                 <div class="message-text">
-                                    ${ji['content']|n}
+				  % if ji['content']:
+                                  ${ji['content']|n}
+				  % endif
                                 </div>
                             </div>
                         % endfor
