@@ -47,7 +47,7 @@ function clean_all() {
     }
 
 function install_prerequisites() {
-    sudo apt install jq postgresql-client-common postgresql-client dos2unix &&
+    sudo apt install -y jq postgresql-client-common postgresql-client dos2unix &&
     git submodule update --init --recursive
     }
 
