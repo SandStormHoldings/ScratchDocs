@@ -327,3 +327,45 @@ def last_change(C,tid):
 def parse_last_change(C,tid):
     r1,r2 = last_change(C,tid)
     
+
+# this section of code is for debugging and repairing journal digests. structurization needed.
+if __name__=='__main__':
+    import sys,jsonpatch,re
+    if sys.argv[1]=='digest':
+        tid = len(sys.argv)>2 and re.compile('^([0-9\/]+)$').search(sys.argv[2]) and sys.argv[2] or None
+        fix = 'fix' in sys.argv[1:]
+        from couchdb import init_conn,Task
+        P = init_conn()
+        with P as p:
+            C = p.cursor()
+            qry = "select id,contents from tasks"
+            args=[]
+            if tid:
+                qry+=" where id=%s"
+                args.append(tid)
+            C.execute(qry,args)
+            ts = C.fetchall()
+            for t in ts:
+                tid=t['id']
+                tc = t['contents']
+                if 'journal' not in tc:
+                    print(tid,'no journal')
+                    continue
+                jd = journal_digest(t['contents']['journal'])                
+                if 'journal_digest' not in tc:
+                    pjd={}
+                else:
+                    pjd = t['contents']['journal_digest']
+                eq = jd == pjd
+                dfs = [d for d in jsonpatch.JsonPatch.from_diff(jd,pjd) if not d['path'].endswith('/created_at')]
+                if not eq and not len(dfs): eq='negligible'
+                if eq:
+                    print(tid,eq,dfs)
+                else:
+                    print(tid,eq,dfs,pjd,'=>',jd)
+                    if fix:
+                        print('FIXING',tid)
+                        tc['journal_digest'] = jd
+                        qry = "update tasks set contents=%s where id=%s"
+                        args = [json.dumps(tc),tid]
+                        C.execute(qry,args)
