@@ -332,6 +332,119 @@ CREATE VIEW karma AS
 
 
 --
+-- Name: rates; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE rates (
+    dt date NOT NULL,
+    person character varying NOT NULL,
+    rateh double precision,
+    ratem double precision
+);
+
+
+--
+-- Name: rates_ranges_dup; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW rates_ranges_dup AS
+ WITH r1 AS (
+         SELECT rates.dt,
+            rates.person,
+            rates.rateh,
+            rates.ratem
+           FROM rates
+          ORDER BY rates.dt, rates.person
+        ), r2 AS (
+         SELECT rates.dt,
+            rates.person,
+            rates.rateh,
+            rates.ratem
+           FROM rates
+          ORDER BY rates.dt, rates.person
+        )
+ SELECT r1.dt AS frdt,
+    ((r2.dt - '1 day'::interval))::date AS todt,
+    r1.person,
+    r1.rateh,
+    r1.ratem,
+    (((r2.dt - '1 day'::interval))::date - r1.dt) AS prd
+   FROM (r1
+     LEFT JOIN r2 ON ((((r1.person)::text = (r2.person)::text) AND (r1.dt < r2.dt))))
+  ORDER BY r1.dt, r1.person, (((r2.dt - '1 day'::interval))::date - r1.dt);
+
+
+--
+-- Name: rates_ranges_windows; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW rates_ranges_windows AS
+ WITH w AS (
+         SELECT rates_ranges_dup.person,
+            rates_ranges_dup.frdt,
+            COALESCE(min(rates_ranges_dup.prd), 0) AS prd
+           FROM rates_ranges_dup
+          GROUP BY rates_ranges_dup.person, rates_ranges_dup.frdt
+        )
+ SELECT w.person,
+    w.frdt,
+    w.prd
+   FROM w;
+
+
+--
+-- Name: rates_ranges; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW rates_ranges AS
+ SELECT r.frdt,
+    r.todt,
+    r.person,
+    r.rateh,
+    r.ratem,
+    r.prd
+   FROM rates_ranges_dup r,
+    rates_ranges_windows w
+  WHERE (((r.person)::text = (w.person)::text) AND (r.frdt = w.frdt) AND (COALESCE(r.prd, 0) = w.prd));
+
+
+--
+-- Name: tracking_by_day; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW tracking_by_day AS
+ SELECT upw_tracking.provider,
+    upw_tracking.tids,
+    upw_tracking.worked_on AS dt,
+    sum(((upw_tracking.hours)::double precision * '01:00:00'::interval)) AS tracked
+   FROM upw_tracking
+  GROUP BY upw_tracking.provider, upw_tracking.worked_on, upw_tracking.tids
+UNION
+ SELECT ssm_tracking.person AS provider,
+    ssm_tracking.tids,
+    date(ssm_tracking.started_at) AS dt,
+    sum((ssm_tracking.ended_at - ssm_tracking.started_at)) AS tracked
+   FROM ssm_tracking
+  GROUP BY ssm_tracking.person, ssm_tracking.tids, (date(ssm_tracking.started_at));
+
+
+--
+-- Name: missing_rates; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW missing_rates AS
+ SELECT t.provider,
+    min(t.dt) AS frdt,
+    max(t.dt) AS todt,
+    sum(t.tracked) AS tracked
+   FROM (tracking_by_day t
+     LEFT JOIN rates_ranges r ON ((((t.provider)::text = (r.person)::text) AND (((t.dt >= r.frdt) AND (t.dt <= r.todt)) OR ((t.dt >= r.frdt) AND (r.todt IS NULL))))))
+  WHERE ((r.ratem IS NULL) AND (r.rateh IS NULL))
+  GROUP BY t.provider
+  ORDER BY (sum(t.tracked)) DESC;
+
+
+--
 -- Name: participants; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -567,7 +680,7 @@ CREATE VIEW tasks_pri_lean AS
            FROM tasks t_1
         UNION
          SELECT tasks.id,
-            NULL::text
+            NULL::text AS text
            FROM tasks) t ON (((g.name)::text = t.tag)))
   GROUP BY t.id
   ORDER BY (sum(COALESCE(g.pri, 0))) DESC;
@@ -639,26 +752,6 @@ CREATE TABLE tracking (
     tids character varying[],
     offline boolean
 );
-
-
---
--- Name: tracking_by_day; Type: VIEW; Schema: public; Owner: -
---
-
-CREATE VIEW tracking_by_day AS
- SELECT upw_tracking.provider,
-    upw_tracking.tids,
-    upw_tracking.worked_on AS dt,
-    sum(((upw_tracking.hours)::double precision * '01:00:00'::interval)) AS tracked
-   FROM upw_tracking
-  GROUP BY upw_tracking.provider, upw_tracking.worked_on, upw_tracking.tids
-UNION
- SELECT ssm_tracking.person AS provider,
-    ssm_tracking.tids,
-    date(ssm_tracking.started_at) AS dt,
-    sum((ssm_tracking.ended_at - ssm_tracking.started_at)) AS tracked
-   FROM ssm_tracking
-  GROUP BY ssm_tracking.person, ssm_tracking.tids, (date(ssm_tracking.started_at));
 
 
 --

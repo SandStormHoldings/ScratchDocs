@@ -8,6 +8,7 @@ from builtins import zip
 from builtins import chr
 from builtins import str
 from builtins import range
+from random import randint,seed
 from noodles.http import Response
 import dateutil.parser
 from tasks import gso
@@ -22,10 +23,11 @@ from notif import parse
 import config as cfg
 initvars(cfg)
 from docs import cre,date_formats,parse_attrs,get_fns,get_parent_descriptions,rewrite,get_new_idx,add_task,get_parent,flush_taskfiles_cache,tasks_validate, get_karma, get_karma_receivers, deps_validate
-from docs import loadmeta,org_render,parsegitdate,read_current_metastates,read_journal,render_journal_content,append_journal_entry,Task,get_latest,metastates_agg,metastates_qry,P, gantt_info,gantt_info_row
+from docs import loadmeta,org_render,parsegitdate,read_current_metastates,read_journal,render_journal_content,append_journal_entry,Task,get_latest,metastates_agg,metastates_qry,P, gantt_info,gantt_info_row,dhtmlgantt_dfmt,iso_dfmt
 import codecs
 import copy
 import datetime
+from time import time
 import orgparse
 import os
 import re
@@ -842,24 +844,67 @@ def incoming(request,P,C,tags=[],limit=300):
 @ajax_response
 @db
 def gantt_save(request,P,C):
+    global dhtmlgantt_dfmt
+    tsaves={}    
+    adm = get_admin(request,'unknown')    
     o = json.loads(request.params.get('obj'))
-    with P as p:
-        C = p.cursor()
-        C.execute("select * from gantt where tid in %(items)s",{'items':tuple([d['id'] for d in o['data']])})
-        gts = C.fetchall()
-    for g in gts:
-        t = Task.get(C,g['tid'])
-        t['gantt_links']=[]
-        t.save()
+    for d in o['data']:
+        tid = d['id']
+        sd = d['start_date'] ; sdp = datetime.datetime.strptime(sd,dhtmlgantt_dfmt)
+        ed = d['end_date'] ; edp = datetime.datetime.strptime(ed,dhtmlgantt_dfmt)
+        pg = d['progress']
+
+        C.execute("select * from gantt where tid=%s",[tid])
+        r = C.fetchall()[0]
+        gr = gantt_info_row(r)
+
+        tafsd = gr['taf'][0] and datetime.datetime.combine(gr['taf'][0],datetime.time.min) or None
+        if tafsd!=sdp:
+            print('sdp',tid,tafsd,'!=',sdp)
+            sdo=sdp
+        else:
+            sdo=None
+
+        tafed = gr['taf'][1] and datetime.datetime.combine(gr['taf'][1],datetime.time.min) or None
+        if tafed!=edp:
+            print('edp',tid,tafed,'!=',edp)
+            edo=edp
+        else:
+            edo=None
+
+        ga = {'sdo':sdo,
+              'edo':edo,
+              'pg':pg,
+        }
+        if tid not in tsaves:
+            tsaves[tid] = Task.get(C,tid)
+        t = tsaves[tid]
+        t.gantt = ga
+        #print('taf',tid,sdo,edo)
+        
+    deps={}
     for l in o['links']:
-        s = Task.get(C,l['source'])
-        if 'gantt_links' not in s: s['gantt_links']=[]
-        s['gantt_links'].append(l)
-        s.save()
+        print('add_dep',l)
+        if l['source'] not in deps: deps[l['source']]=[]
+        if l['target'] not in deps[l['source']]: deps[l['source']].append(l)
+
+    for tid,links in deps.items():
+        if tid not in tsaves:
+            tsaves[tid] = Task.get(C,tid)
+        t = tsaves[tid]
+        depids = list(set([l['target'] for l in links]))
+        depids = deps_validate(C,tsaves,tid,depids)        
+        if sorted(t.dependencies)!=sorted(depids):
+            print('%s.dependencies = %s'%(tid,depids))
+            t.dependencies=depids
+        
+    for tid,t in tsaves.items():
+        print('SAVING',tid)
+        t.save(P,C,user=adm)
+        
     
     return {'res':'ok'}
 
-                      
 @render_to('time_tracking_dashboard.html')
 @db
 def time_tracking_dashboard(request,P,C,rangeback='7 day',persons=None,mode='provider',tids=None):
@@ -937,41 +982,65 @@ def time_tracking_dashboard(request,P,C,rangeback='7 day',persons=None,mode='pro
 
 @render_to('gantt.html')
 @db
-def gantt(request,P,C):
+def gantt(request,P,C,tid=None):
+    global dhtmlgantt_dfmt
+    
     adm = get_admin(request,'unknown')
-    if not hasperm_db(C,adm,'gantt'): return Error403('no sufficient permissions for %s'%adm)    
-    res = C.execute("select id from tasks where show_in_gantt=false")
+    if not hasperm_db(C,adm,'gantt'): return Error403('no sufficient permissions for %s'%adm)
+    qry = "select id from tasks where show_in_gantt=false"
+    res = C.execute(qry)
+
     fa = C.fetchall()
     dismissed = [r['id'] for r in fa if r]
-
-    C.execute("select * \
-from gantt where \
-(we is not null and t is not null ) and ( (t_l>=now()-interval '2 weeks' or c_l>=now()-interval '2 weeks'))")
+    qry = "select * from gantt where 1=1"
+    args=[]
+    if tid:
+        qry+=" and tid=%s or parent_id=%s"
+        args.append(tid) ; args.append(tid)
+    else:
+        qry+=" and (we is not null and t is not null )"
+        qry+=" and ( (t_l>=now()-interval '2 weeks' or c_l>=now()-interval '2 weeks'))"
+    
+    print(qry,args)
+    C.execute(qry,args)
     #and created_at>=now()-interval '12 month'
     res = C.fetchall()
     print((len(res),'initial tasks fetched'))
 
     # retrieve missing parents?
     while True:
-        missing = set([r['parent_id'] for r in res if
+        missing = list(set([r['parent_id'] for r in res if
                        r['parent_id'] and
                        r['parent_id'] not in dismissed and
-                       r['parent_id'] not in [r2['tid'] for r2 in res]])
+                       r['parent_id'] not in [r2['tid'] for r2 in res]]))
+        missing2=[]
+        for r in res:
+            ct = Task.get(C,r['tid'])
+            try:
+                missing2+=ct['dependencies']
+            except KeyError:
+                pass
+        for r in res:
+            if r['tid'] in missing2:
+                missing2.remove(r['tid'])
+        missing+=missing2
         print(('calculated',len(missing),'missing parents:',missing))
 
-        if not len(missing): break        
+        if not len(missing): break
         #C.execute("select * from gantt where tid ANY %s",(list(missing),))
         C.execute("select * from gantt where tid in %(missing)s",{'missing':tuple(missing,)})
         res+=C.fetchall()
 
 
     tasks=[]
-    links=[]    
+    links=[]
+    assignees=[] ; colors=[]
     for r in res:
         gr = gantt_info_row(r,excl=())
 
         created_at=r['created_at']
         tid=r['tid']
+        assignee=r['assignee']
         parent_id=r['parent_id']
         summary=r['summary']
         status=r['status']
@@ -985,15 +1054,16 @@ from gantt where \
         c_l = r['c_l']
         assert re.compile('^([0-9\/]{3,})$').search(tid),Exception("got bad tid",tid,"from ",r)
         start_date = gr['taf'][0]
-        
+        if assignee not in assignees: assignees.append(assignee)
         if parent_id in dismissed: parent=None
         else: parent=parent_id
         text = summary #'%s:%s:%s'%(tid,gr['dt'],summary)
-        nstart_date = start_date and start_date.strftime('%d-%m-%Y %H:%I') or None
+        nstart_date = start_date and start_date.strftime(dhtmlgantt_dfmt) or None
         apnd = {'id':tid,
+                'assignee':assignee,
                 'summary':summary,
                 'status':status,
-                'text':tid,
+                'text':tid+' : '+assignee,
                 'start_date':nstart_date, # when was it in fact started to be worked on
                 'duration':gr['dur'], # total REAL or estimated duration
                 'progress':gr['ce'], # progress estimation
@@ -1003,14 +1073,25 @@ from gantt where \
         tasks.append(apnd)
         ct = Task.get(C,tid)
         try:
-            for tl in ct['gantt_links']:
-                links.append(tl)
+            for dep in ct['dependencies']:
+                tp = '0'
+                tdep = {'source': tid, 'target': dep, 'type': tp, 'id': tid+'-'+dep+'-'+tp}
+                links.append(tdep)
         except KeyError as e:
             pass
-    
+    assignees.sort()
+    assignees_colors = {}
+    seed(1)
+    for i in range(len(assignees)):
+        clr = '%06X' % randint(0, 0xFFFFFF)
+        colors.append(clr)
+        assignees_colors[assignees[i]]=clr
+
     return basevars(request,P,C,{'tasks':json.dumps({'data':tasks,
-                                                 'links':links
-    })})
+                                                     'links':links
+    }),
+                                 'assignees_colors':assignees_colors
+    })
 
 
 
@@ -1097,8 +1178,8 @@ def queue(request,P,C,assignee=None,archive=False,metastate_group='merge'):
     queue = list(queue.items())
     qsort = cmp_to_key(
         lambda x1,x2: 
-        cmp((x1[1]['last updated'] and datetime.datetime.strptime(x1[1]['last updated'].split('.')[0],'%Y-%m-%dT%H:%M:%S') or datetime.datetime(year=1970,day=1,month=1)),
-        (x2[1]['last updated'] and datetime.datetime.strptime(x2[1]['last updated'].split('.')[0],'%Y-%m-%dT%H:%M:%S') or datetime.datetime(year=1970,day=1,month=1))))
+        cmp((x1[1]['last updated'] and datetime.datetime.strptime(x1[1]['last updated'].split('.')[0],iso_dfmt) or datetime.datetime(year=1970,day=1,month=1)),
+        (x2[1]['last updated'] and datetime.datetime.strptime(x2[1]['last updated'].split('.')[0],iso_dfmt) or datetime.datetime(year=1970,day=1,month=1))))
     queue.sort(key=qsort,reverse=True)
 
 

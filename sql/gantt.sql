@@ -4,6 +4,9 @@ we.created_at,
 we.tid,
 we.parent_id,
 substr(we.summary,1,20) summary
+,ta.contents->>'assignee' assignee
+,ta.contents->'gantt'->>'sdo' sdo -- manual gantt start override
+,ta.contents->'gantt'->>'edo' edo -- manual gantt end override
 ,we.status
 ,we.work_estimate we
 ,we.finish_date

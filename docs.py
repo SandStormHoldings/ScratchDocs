@@ -31,15 +31,21 @@ from pg import get_new_idx,get_tags
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+dhtmlgantt_dfmt = '%d-%m-%Y %H:%M'
+iso_dfmt='%Y-%m-%dT%H:%M:%S'
 
 P = init_conn()
 
-def gantt_info_row(grow,excl=('status','created_at','summary','parent_id','tid')):
+def gantt_info_row(grow,excl=('status','created_at','summary','parent_id','tid','assignee')):
     gantt = dict([(k,v) for k,v in list(grow.items()) if k not in excl])
     l = [x for x in [gantt['t_f'],gantt['c_f']] if x is not None]
     u = [x for x in [gantt['t_l'],gantt['c_l']] if x is not None]
     task_activity_frame=[len(l) and min(l) or None,
                          len(u) and max(u) or None]
+    if grow.get('sdo'):
+        task_activity_frame[0]=datetime.datetime.strptime(grow.get('sdo'),iso_dfmt).date()
+    if grow.get('edo'):
+        task_activity_frame[1]=datetime.datetime.strptime(grow.get('edo'),iso_dfmt).date()
     
     # (as a percentage:)
     thrs = gantt['t'] and (gantt['t'].days + old_div(float(gantt['t'].seconds),86400)) or 0
@@ -53,7 +59,7 @@ def gantt_info_row(grow,excl=('status','created_at','summary','parent_id','tid')
     gantt['taf']=task_activity_frame
     
     # this is where we guess delivery date
-    if task_activity_frame[0] and not task_activity_frame[1]: raise Exception(gantt)
+    #if task_activity_frame[0] and not task_activity_frame[1]: raise Exception(gantt)
 
     # if task is done, then duration is the de-facto frame
     if grow['status'] in ('DONE','CANCELLED',):
@@ -98,7 +104,9 @@ def gantt_info(C,tid):
                     'c':'lines added',
                     'finish_date':'finish date estimate',
                     'ce':'completion estimate',
-                    'taf':'task activity frame'}
+                    'taf':'task activity frame',
+                    'sdo':'activity start override',
+                    'edo':'activity end override'}
     C.execute("select * from gantt where tid=%s",(tid,))
     grow = C.fetchone()
     if grow:
@@ -287,7 +295,7 @@ def filterby(fieldname,value,rtl):
     return rtl
 
 def get_latest(C,tags='email',newer_than=None,limit=300):
-    nt = datetime.datetime.strptime(newer_than.translate({None: ':-'}), "%Y-%m-%dT%H:%M:%S")
+    nt = datetime.datetime.strptime(newer_than.translate({None: ':-'}), iso_dfmt)
     args = []
     qry = """select je.* 
 from 

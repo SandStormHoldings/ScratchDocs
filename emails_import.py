@@ -20,7 +20,7 @@ from docs import initvars
 import config as cfg
 initvars(cfg)
 import notmuch
-from docs import Task,add_task,rewrite,get_task,append_journal_entry,P
+from docs import Task,add_task,rewrite,get_task,append_journal_entry,P,iso_dfmt
 from couchdb import get_children
 import datetime
 import sys
@@ -261,7 +261,7 @@ if __name__=='__main__':
 
                 pars = {'creator':md['team_sender'] and md['team_sender'] or md['sndr'],
                         'assignee':asgn,
-                        'created_at':datetime.datetime.strptime(md['dt_cr'],"%Y-%m-%dT%H:%M:%S"),
+                        'created_at':datetime.datetime.strptime(md['dt_cr'],iso_dfmt),
                         'summary':md['clean_subj'],
                         'orig_subj':md['orig_subj'],
                         'external_id':md['unq_key'],
@@ -316,7 +316,7 @@ if __name__=='__main__':
                     print('JOURNAL INSERT/UPDATE on %s'%md['mid'])
                     t = get_task(master[0])
                     jattrs = [je['attrs'].get('unq_key') for je in t.journal]
-                    j_cr_dt = datetime.datetime.strptime(md['dt_cr'],"%Y-%m-%dT%H:%M:%S")
+                    j_cr_dt = datetime.datetime.strptime(md['dt_cr'],iso_dfmt)
                     j_creator = (md['team_sender'] and md['team_sender'] or md['sndr'])
                     j_unq_key = '-'.join([md['unq_key'],md['dt_cr'],j_creator])
                     

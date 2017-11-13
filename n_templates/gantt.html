@@ -8,6 +8,13 @@ scales
 ] |
 <a href="#" id='gantt_save'>save</a> |
 <div id="gantt_here" style='width:100%; min-height:800px;'></div>
+<style type='text/css'>
+  % for a,c in assignees_colors.items():
+  .assignee_${a} {
+  background-color: #${c};
+  }
+  % endfor
+</style>
 <script type='text/javascript'>
   $(function() { zoom_tasks('year'); });
   $('#gantt_save').click(function(ev) {
@@ -84,6 +91,11 @@ function HtmlEncode(s)
   gantt.init('gantt_here');
   gantt.config.json_date = "%Y-%m-%dT%H:%i:%sZ";
 
+  gantt.templates.task_class  = function(start, end, task){
+  return "assignee_"+task.assignee;
+  };
+  gantt.config.open_tree_initially = true;
+  
   //gantt.addTask/addLink, gantt.updateTask/updateLink, gantt.deleteTask/deleteLink
 
   gantt.parse(stasks,type='json');

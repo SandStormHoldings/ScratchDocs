@@ -164,7 +164,7 @@ function removeTask() {
     <table>
     <thead>
     <tr>
-    <% cols = len(tasks) and tasks[0].keys() or [] %>
+    <% cols = len(tasks) and tasks[0].keys() or [] ; tothrs=0 %>
     % for col in cols:
     <td>${col}</td>
     % endfor
@@ -176,8 +176,13 @@ function removeTask() {
     % for col in cols:
     <td>${t[col]}</td>
     % endfor
-</tr>
+    </tr>
+    <% tothrs+=float(t['tracked']) %>
     % endfor
+    <tr><td>totals</td>
+      <td></td>
+      <td>${"%4.2f"%tothrs}</td>
+      </tr>
 </tbody>
 </table>
 </%def>

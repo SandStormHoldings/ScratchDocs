@@ -73,6 +73,7 @@ def get_map():
 
         (URL_PREFIX+"/g","controllers#gantt"),
         (URL_PREFIX+"/g/save","controllers#gantt_save"),
+        (URL_PREFIX+"/g/{tid:.*}","controllers#gantt"),
 
         (URL_PREFIX+"/tt","controllers#time_tracking_dashboard"),
         (URL_PREFIX+"/tt/{rangeback:.*}/{persons:.*}","controllers#time_tracking_dashboard"),                

@@ -147,3 +147,8 @@ span.divider-vertical{
 	vertical-align: middle;
 	margin: 0px 15px;
 }
+
+
+.gantt_tree_content {
+    font-size:50%;
+}

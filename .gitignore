@@ -10,3 +10,4 @@ testdata
 celerybeat-schedulesupervisord.log
 supervisord.pid
 supervisord.log
+tasks-*.sql
