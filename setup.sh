@@ -47,7 +47,9 @@ function clean_all() {
     }
 
 function install_prerequisites() {
-    sudo apt install jq postgresql-client-common postgresql-client dos2unix &&
+    ( if [[ "$1" == "apt" ]] ; then
+	  sudo apt install jq postgresql-client-common postgresql-client dos2unix pv
+      fi ) &&
     git submodule update --init --recursive
     }
 
@@ -218,7 +220,7 @@ function restart_hard_and_attach() {
     }
 function all() {
     clean_all &&
-	install_prerequisites &&
+	install_prerequisites "$1" &&
 	pull_and_build &&
 	init_and_run
 }
@@ -252,7 +254,7 @@ elif [[ "$0" != "bash" && "$0" != "-bash" ]] ; then
 	fi
     echo "# commencing setup.sh ALL in 5 seconds. NAME=$NAME. source this file and/or override NAME by providing one as the first arg."
     sleep 5
-    all
+    all "$1"
     #echo "ERROR ($0): you must source this script first. $ source setup.sh"
 else
     if [[ "$1" != "" ]] ; then
