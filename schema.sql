@@ -567,6 +567,25 @@ CREATE VIEW task_history_notifications AS
 
 
 --
+-- Name: tasks_cost; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW tasks_cost AS
+ SELECT t.id,
+    tr.provider,
+    tr.tids,
+    tr.dt,
+    tr.tracked,
+    ((date_part('epoch'::text, tr.tracked) / (3600)::double precision) * rr.rateh) AS cst,
+    rr.rateh,
+    ((t.contents ->> 'created_at'::text))::timestamp without time zone AS crat,
+    (t.contents ->> 'summary'::text) AS summary
+   FROM ((tasks t
+     JOIN tracking_by_day tr ON (((t.id)::text = ANY ((tr.tids)::text[]))))
+     JOIN rates_ranges rr ON ((((rr.person)::text = (tr.provider)::text) AND (((tr.dt >= rr.frdt) AND (tr.dt <= rr.todt)) OR ((tr.dt >= rr.frdt) AND (rr.todt IS NULL))))));
+
+
+--
 -- Name: tasks_deps; Type: VIEW; Schema: public; Owner: -
 --
 
