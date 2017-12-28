@@ -99,7 +99,7 @@ def get_journals(P,C,assignee=None,metastate_group='merge',archive=False):
                 qry+=" and contents->>'status' not in %s"
                 args.append(tuple(DONESTATES))
             elif archive: #and t['status'] not in cfg.DONESTATES: continue
-                qry+=" and status in %s"
+                qry+=" and contents->>'status' in %s"
                 args.append(tuple(DONESTATES))
             else:
                 raise Exception('wtf')
